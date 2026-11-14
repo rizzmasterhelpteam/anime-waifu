@@ -32,7 +32,7 @@ async function endpointChecks(){
   assert(Date.parse(providerConfig.newSessionExpireTime)-Date.now()<=60000);
   const config=providerConfig.liveConnectConstraints.config;
   assert.equal(config.responseModalities[0],'AUDIO');assert(!config.thinkingConfig);assert(!config.outputAudioTranscription);assert(!config.inputAudioTranscription);
-  assert.equal(config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,character==='gothic_red'?'Aoede':'Kore');
+  assert.equal(config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,character==='gothic_red'?'Leda':'Sulafat');
  }
  assert.equal((await handler(new Request('https://test.invalid',{method:'OPTIONS'}))).status,204);
 }
