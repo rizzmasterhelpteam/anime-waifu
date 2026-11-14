@@ -191,7 +191,8 @@
     btns.forEach((btn) => {
       const id = btn.getAttribute("data-pose");
       const quiet=settings.interactionFrequency==='quiet';
-      const isActive=id==='quiet'?quiet:id==='auto'?(settings.poseMode==='auto'&&!quiet):id==='idle'&&settings.poseMode==='idle';
+      const selected=quiet||settings.poseMode==='idle'?'calm':settings.interactionFrequency==='playful'?'playful':'auto';
+      const isActive=id===selected;
       btn.classList.toggle("active", isActive);
     });
   }
@@ -754,7 +755,7 @@
       openToolbar(8000);
     }, { passive: true });
 
-    const quickPoses = [{id:'auto',label:'Auto'},{id:'idle',label:'Stay'},{id:'interact',label:'Interact'},{id:'quiet',label:'Quiet'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
+    const quickPoses = [{id:'auto',label:'Auto'},{id:'calm',label:'Calm'},{id:'playful',label:'Playful'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
     for (const p of quickPoses) {
       const b = document.createElement("button");
       b.type = "button";
@@ -773,36 +774,8 @@
         openToolbar(750);
         stopStroll();
         if(['interact','dance','garden','walk'].includes(p.id)){requestBehavior(p.id);return;}
-        settings.interactionFrequency=p.id==='quiet'?'quiet':'balanced';
-        const nextMode = p.id==='quiet'?'auto':p.id;
-        settings.poseMode = nextMode;
-        if(p.id==='auto'){
-          settings.microMotion=true;settings.autoStroll=true;
-          brain.elapsed=0;brain.stage=0;brain.last=performance.now();
-          nextStrollAt=performance.now()+15000;
-          animator.setMicroMotion(true);animator.setPaused(false);
-        }
-        temporaryPose = null;
-        chrome.storage.local.set({ settings });
-        if (nextMode === "auto") {
-          syncPose();
-          scheduleAutoBehavior();
-          showBubble(p.id==='quiet'?"Quiet mode. I'll keep things peaceful.":"Auto mode on~ I'll keep you company!", 3200);
-          scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-        } else {
-          if (autoBehaviorTimer) {
-            clearTimeout(autoBehaviorTimer);
-            autoBehaviorTimer = null;
-          }
-          animator.setPose(nextMode, true);
-          updateToolbarActiveState(nextMode);
-          const q = pickMotionQuote(nextMode);
-          if (q) {
-            showBubble(q, 4500);
-          } else {
-            scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-          }
-        }
+        requestBehavior(p.id);
+        chrome.storage.local.set({settings});
       });
       toolbarEl.appendChild(b);
     }
@@ -1474,11 +1447,16 @@
   function requestBehavior(action) {
     if(!animator || !hostEl)return {ok:false,error:'Companion is still loading. Retry in a moment.'};
     if(document.hidden || isFullscreenBlocked())return {ok:false,error:'Open the visible page containing your companion first.'};
-    if(!['auto','interact','dance','garden','walk'].includes(action))return {ok:false,error:'Unknown activity'};
+    if(!['auto','calm','playful','interact','dance','garden','walk'].includes(action))return {ok:false,error:'Unknown activity'};
     lastPageActivity=Date.now();stopStroll();
     animator.setMicroMotion(true);animator.setPaused(false);
-    if(action==='auto'){
-      settings.poseMode='auto';settings.interactionFrequency=settings.interactionFrequency==='quiet'?'balanced':settings.interactionFrequency;
+    if(action==='calm'){
+      settings.poseMode='auto';settings.interactionFrequency='quiet';
+      animator.behavior=null;temporaryPose=null;clearTimeout(temporaryPoseTimer);
+      if(behaviorProp)behaviorProp.hidden=true;
+      syncPose();scheduleAutoBehavior();
+    }else if(action==='auto'||action==='playful'){
+      settings.poseMode='auto';settings.interactionFrequency=action==='playful'?'playful':'balanced';
       settings.microMotion=true;settings.autoStroll=true;
       brain.stage=0;brain.elapsed=0;brain.last=performance.now();nextStrollAt=performance.now()+15000;
       performBehavior('greet',true);scheduleAutoBehavior();

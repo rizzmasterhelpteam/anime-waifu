@@ -287,7 +287,7 @@
     }
 
     els.poseBtns.forEach((b) => {
-      b.classList.toggle("active", b.getAttribute("data-pose") === (settings.poseMode || "auto"));
+      b.classList.toggle("active", b.dataset.mode === (settings.poseMode==='idle'||settings.interactionFrequency==='quiet'?'calm':settings.interactionFrequency==='playful'?'playful':'auto'));
     });
 
     if (document.activeElement !== els.rangeSize) {
@@ -771,21 +771,19 @@
       });
     }
 
-    els.poseBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const pose = btn.getAttribute("data-pose");
-        saveSettings(pose==='auto'?{poseMode:'auto',interactionFrequency:settings.interactionFrequency==='quiet'?'balanced':settings.interactionFrequency,microMotion:true,autoStroll:true}:{poseMode:pose});
-        const feedback=document.getElementById('behavior-feedback');
-        if(feedback)feedback.textContent=pose==='auto'?'Auto enabled. Walking resumes shortly; attention activities progress over 90–120 seconds.':'Staying here. Use an activity button for an immediate movement.';
-        if(pose==='auto')chrome.tabs.query({active:true,currentWindow:true}).then(([tab])=>tab?.id && chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:'auto'})).then(r=>{if(!r?.ok && feedback)feedback.textContent='Refresh your website to load the updated Auto controls.';}).catch(()=>{if(feedback)feedback.textContent='Refresh your website to connect the updated companion.';});
-        if (previewAnimator) {
-          previewAnimator.setMicroMotion(true);
-          previewAnimator.setPose(pose === "auto" ? 'wave' : pose, true);
-        }
-      });
-    });
+    els.poseBtns.forEach(btn=>btn.addEventListener('click',async()=>{
+      const mode=btn.dataset.mode;
+      const feedback=document.getElementById('behavior-feedback');
+      saveSettings({poseMode:'auto',interactionFrequency:mode==='calm'?'quiet':mode==='playful'?'playful':'balanced',...(mode==='calm'?{}:{microMotion:true,autoStroll:true})});
+      feedback.textContent=mode==='calm'?'Calm: peaceful idle; tap her or choose an activity anytime.':mode==='playful'?'Playful: a livelier autonomous routine.':'Auto: normal autonomous routine.';
+      try{
+        const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
+        const r=tab?.id&&await chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:mode});
+        if(!r?.ok)throw Error();
+      }catch{feedback.textContent+=' Refresh your website to connect the updated companion.';}
+      if(previewAnimator){previewAnimator.behavior=null;previewAnimator.setPose(mode==='calm'?'idle':'wave',true);}
+    }));
 
-    document.getElementById('interaction-frequency')?.addEventListener('change',e=>saveSettings({interactionFrequency:e.target.value}));
     document.querySelectorAll('[data-behavior]').forEach(button=>button.addEventListener('click',async()=>{
       const feedback=document.getElementById('behavior-feedback');
       button.disabled=true;feedback.textContent='Starting activity…';

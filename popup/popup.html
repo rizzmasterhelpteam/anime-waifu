@@ -76,17 +76,15 @@
 
         <div class="section-label">Companion behavior</div>
         <div id="pose-grid" class="pose-grid">
-          <button class="pose-btn" data-pose="auto" type="button">Auto</button>
-          <button class="pose-btn" data-pose="idle" type="button">Stay here</button>
-          <button class="secondary-btn" data-behavior="interact" type="button">Interact</button>
+          <button class="pose-btn" data-mode="auto" type="button">Auto</button>
+          <button class="pose-btn" data-mode="calm" type="button">Calm</button>
+          <button class="pose-btn" data-mode="playful" type="button">Playful</button>
           <button class="secondary-btn" data-behavior="dance" type="button">Dance</button>
           <button class="secondary-btn" data-behavior="garden" type="button">Garden</button>
           <button class="secondary-btn" data-behavior="walk" type="button">Walk</button>
         </div>
         <p id="behavior-feedback" role="status" aria-live="polite">Choose an activity to try it immediately on your page.</p>
-        <label for="interaction-frequency">Attention &amp; chatter</label>
-        <select id="interaction-frequency"><option value="quiet">Quiet</option><option value="balanced">Balanced</option><option value="playful">Playful</option></select>
-        <p class="hint">Auto: relax, tend a plant, dance, playfully pout, then unwind. Quiet pauses attention-seeking.</p>
+        <p class="hint">Auto: normal routine. Calm: stays peacefully with no attention-seeking. Playful: livelier routine. Tap her directly to interact.</p>
 
         <div class="control-group">
           <div class="control-row">
