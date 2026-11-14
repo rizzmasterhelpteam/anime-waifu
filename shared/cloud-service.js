@@ -35,9 +35,9 @@
    await updateSettings(filter(row.settings));return{ok:true};
   }
   if(msg.type==='CLOUD_CLEAR_HISTORY'){checked(await client.from('conversations').delete().eq('user_id',current.user.id));return{ok:true};}
-  if(msg.type==='CLOUD_CHAT'){
-   const response=await fetch(config.url+'/functions/v1/companion-chat',{method:'POST',headers:{apikey:config.publishableKey,Authorization:'Bearer '+current.access_token,'Content-Type':'application/json'},body:JSON.stringify({message:msg.message,character:msg.character,conversationId:msg.conversationId}),signal:AbortSignal.timeout(45000)});
-   const body=await response.json();if(!response.ok)throw Error(body.error||'Chat unavailable');return{ok:true,...body};
+  if(msg.type==='CLOUD_VOICE_TOKEN'){
+   const response=await fetch(config.url+'/functions/v1/companion-voice',{method:'POST',headers:{apikey:config.publishableKey,Authorization:'Bearer '+current.access_token,'Content-Type':'application/json'},body:JSON.stringify({character:msg.character}),signal:AbortSignal.timeout(20000)});
+   const body=await response.json();if(!response.ok)throw Error(body.error||'Voice unavailable');return{ok:true,...body};
   }
   throw Error('Unknown cloud action');
  }};

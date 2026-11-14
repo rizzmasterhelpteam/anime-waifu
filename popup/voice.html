@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Companion voice</title><link rel="stylesheet" href="voice.css"></head>
+<body>
+ <main>
+  <p class="eyebrow">GEMINI 3.8 LIVE</p>
+  <div id="portrait" class="portrait" aria-hidden="true"><span id="initial">S</span></div>
+  <h1 id="name">Your companion</h1>
+  <p id="status" role="status" aria-live="polite">Ready when you are</p>
+  <p id="timer">Voice conversation · up to 10 minutes</p>
+  <div class="controls"><button id="start">Start conversation</button><button id="mute" disabled aria-pressed="false">Mute microphone</button><button id="end" disabled>End call</button></div>
+  <p class="note">Your microphone connects only after you start. Audio streams to Google Gemini; this extension does not save recordings or transcripts. Keep this window open during your call.</p>
+ </main>
+ <script src="voice-audio.js"></script><script src="voice.js"></script>
+</body></html>

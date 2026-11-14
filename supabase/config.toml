@@ -6,3 +6,7 @@ verify_jwt = false
 
 [functions.auth-complete]
 verify_jwt = false
+
+[functions.companion-voice]
+# Validates the caller with Auth before issuing a constrained, short-lived token.
+verify_jwt = false

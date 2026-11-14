@@ -153,7 +153,7 @@
 
       <section id="tab-account" class="panel">
         <details id="cloud-account" class="advanced-settings">
-          <summary>Account &amp; AI chat</summary>
+          <summary>Account &amp; live voice</summary>
           <p id="cloud-status" role="status">Optional cloud features</p>
           <div id="cloud-login">
             <label>Email<input id="cloud-email" type="email" autocomplete="email" /></label>
@@ -163,9 +163,8 @@
           </div>
           <div id="cloud-signed" hidden>
             <div class="hero-actions"><button data-cloud-action="PUSH" type="button">Save settings</button><button data-cloud-action="PULL" type="button">Load settings</button><button data-cloud-action="SIGN_OUT" type="button">Sign out</button></div>
-            <label>Message<textarea id="cloud-message" maxlength="2000" rows="3" placeholder="Talk to your selected companion"></textarea></label>
-            <button data-cloud-action="CHAT" type="button">Send message</button>
-            <p id="cloud-reply" aria-live="polite"></p>
+            <p>Talk naturally with your companion using Gemini 3.8 Live.</p>
+            <button data-cloud-action="VOICE" type="button">Open voice conversation</button>
             <button data-cloud-action="CLEAR_HISTORY" type="button">Delete my chat history</button>
           </div>
         </details>
