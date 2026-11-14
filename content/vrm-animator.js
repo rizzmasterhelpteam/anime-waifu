@@ -306,7 +306,14 @@
       };
     }
 
+    async prepareDance() {
+      if(!root.WAIFU_DANCE)throw Error('Reload the extension to load dance playback');
+      this.dancePlayer??=new root.WAIFU_DANCE.SkeletonDance();
+      return this.dancePlayer.prepare(this.modelKey);
+    }
+
     _disposeCurrentModel() {
+      this.dancePlayer?.release();this.behavior=null;
       this.secondaryMotion?.dispose();
       this.secondaryMotion = null;
       if (this.modelRoot && this.pivotGroup) {
@@ -1155,7 +1162,7 @@
         rForeRy = 0.16;
       }
 
-      if(this.microMotion && wWalk<.1){
+      if(this.microMotion && wWalk<.1 && this.behavior?.id!=='dance'){
         const motion=globalThis.WAIFU_SHARED?.behaviorMotion?.(this.behavior,now);
         if(motion){
           hipsRz+=motion.roll;hipsRy+=motion.turn;hipsPy-=motion.y*this.legLength;
@@ -1235,6 +1242,10 @@
 
       this._solveRightArm(wThink, wTea);
 
+      if(this.behavior?.id==='dance' && now<this.behavior.until && this.microMotion && wWalk<.1){
+        this.dancePlayer?.apply(this,this.behavior,now);
+      }
+
       // 3D Eyeball tracking (VRM lookAt OR normalized eye bones on starter GLB)
       if (this.vrm?.lookAt && this._lookAtTargetObj) {
         this._lookAtTargetObj.position.set(
@@ -1290,6 +1301,7 @@
       this._applyExpression("blink", Math.max(blinkVal, softGaze));
       const happyVal = Math.max(
         wIdle * (0.06 + this.hoverBoost * 0.07) + wWave * 0.38 + wCheer * 0.85,
+        this.behavior?.id==='dance' && now<this.behavior.until ? .55 : 0,
         this.apiExpression === "happy" ? this.apiExpressionWeight : 0
       );
       this._applyExpression("happy", happyVal);

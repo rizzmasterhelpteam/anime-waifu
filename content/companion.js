@@ -19,6 +19,7 @@
 
   const brain = new window.WAIFU_SHARED.CompanionBrain();
   let lastPageActivity = Date.now();
+  let behaviorRequest=0;
   let nextStrollAt = performance.now()+45000;
   let behaviorProp = null;
   let behaviorPropTimer = null;
@@ -175,6 +176,7 @@
   function syncPose() {
     if (!animator) return;
     if(timer?.status==='running' || (settings.interactionFrequency==='quiet' && !animator.behavior?.manual)){
+      if(animator.behavior?.id==='dance')cancelDance();
       animator.behavior=null;
       if(behaviorProp)behaviorProp.hidden=true;
       if(temporaryPoseTimer)clearTimeout(temporaryPoseTimer);
@@ -483,16 +485,25 @@
     seraphina:{garden:["A little patience, a little sunshine. Rather like you.","I'm tending my little garden. You keep doing your thing."],dance:["A little intermission. You may admire quietly.","Careful, I might catch you watching."],pout:["Oh, now I'm part of the scenery? How charming."],rest:["I'll enjoy a little quiet time."],sidestep:["Oh, now you noticed?"],showPlant:["Look what I've been growing."],greet:["There you are. I was perfectly entertained, of course.","You have my attention. Use it wisely."]},
     gothic_red:{garden:["This little plant is getting the royal treatment!","Grow, little one! I'll supervise."],dance:["Hey! You're missing my best moves!","Look at me! I practiced this one!"],pout:["Hmph. I'm being dramatically unbothered."],rest:["Fine, little break. I'll entertain myself."],sidestep:["Hmph! Give me a second…"],showPlant:["Look! My plant! Isn't it doing great?"],greet:["There you are! What shall we do?","Aha! You noticed me!"]}
   };
-  function performBehavior(id, manual=false) {
+  async function performBehavior(id, manual=false) {
     if(!animator || document.hidden || (!manual && timer?.status==='running')) return;
     if(manual){animator.setMicroMotion(true);animator.setPaused(false);}
 
+    const request=++behaviorRequest,instance=animator;
+    let danceDuration=0;
+    if(id==='dance'){
+      try{danceDuration=await instance.prepareDance();}
+      catch(error){console.warn('Dance unavailable',error);if(instance===animator && request===behaviorRequest)showBubble('My dance is still loading. Try again in a moment.',3200);return;}
+      if(request!==behaviorRequest||instance!==animator||document.hidden||isDragging||(!manual&&(settings.interactionFrequency==='quiet'||timer?.status==='running')))return;
+      stopStroll();
+    }
     const crimson=settings.activeModel==='gothic_red';
     const duration={garden:20000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
-    const pose=id==='greet'?'wave':id==='dance'?'celebrate':id==='rest'?'tea':id==='pout'?'think':'idle';
+    const actualDuration=id==='dance'?danceDuration*1000:duration;
+    const pose=id==='greet'?'wave':id==='dance'?'idle':id==='rest'?'tea':id==='pout'?'think':'idle';
     const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
-    triggerTemporaryPose(pose,duration,lines && (manual || !isUserTypingNow())?lines[Math.floor(Math.random()*lines.length)]:null);
-    animator.behavior={id,start:performance.now(),until:performance.now()+duration,crimson,manual};
+    triggerTemporaryPose(pose,actualDuration,lines && (manual || !isUserTypingNow())?lines[Math.floor(Math.random()*lines.length)]:null);
+    animator.behavior={id,start:performance.now(),until:performance.now()+actualDuration,crimson,manual};
     if(behaviorPropTimer)clearTimeout(behaviorPropTimer);
     if(behaviorProp){
       behaviorProp.hidden=!(id==='garden'||id==='showPlant');
@@ -501,7 +512,7 @@
     behaviorPropTimer=setTimeout(()=>{
       if(behaviorProp)behaviorProp.hidden=true;
       if(id==='pout' && brain.stage===3){brain.stage=4;brain.elapsed=0;brain.next=240000+Math.random()*120000;}
-    },duration);
+    },actualDuration);
     if(id==='sidestep' && settings.autoStroll && settings.microMotion){
       const right=settings.position?.right??24;
       const candidate=clampPosition(right+65,settings.position?.bottom??18,settings.sizePx,false);
@@ -981,6 +992,7 @@
     }, { passive: false });
 
     canvasEl.addEventListener("pointerdown", (e) => {
+      cancelDance();
       const canOrbit = activeRenderMode === "3d" && typeof animator?.adjustOrbit === "function";
       const wantOrbit = canOrbit && (e.button === 2 || (e.button === 0 && (e.shiftKey || orbitModeEnabled)));
       if (!wantOrbit && e.button !== 0) return;
@@ -1203,10 +1215,20 @@
     animator.setPointerLook(ux * bodyGain, uy * bodyGain, ux * eyeGain, uy * eyeGain);
   }
 
+  function cancelDance() {
+    behaviorRequest++;
+    if(animator?.behavior?.id==='dance'){
+      animator.behavior=null;temporaryPose=null;
+      clearTimeout(temporaryPoseTimer);temporaryPoseTimer=null;
+    }
+    animator?.dancePlayer?.release();
+  }
+
   function handleVisibility() {
     brain.last=performance.now();
     lastPageActivity=Date.now();
     if (document.hidden) {
+      cancelDance();
       hiddenAt = Date.now();
       stopStroll();
     } else if (hiddenAt > 0) {
@@ -1290,6 +1312,7 @@
   }
 
   function unmountUI() {
+    behaviorRequest++;
     clearTimeout(behaviorPropTimer); behaviorProp=null;
     brain.last=0;
     clearTimeout(bubbleTimer);
@@ -1451,6 +1474,7 @@
     lastPageActivity=Date.now();stopStroll();
     animator.setMicroMotion(true);animator.setPaused(false);
     if(action==='calm'){
+      behaviorRequest++;animator.dancePlayer?.release();
       settings.poseMode='auto';settings.interactionFrequency='quiet';
       animator.behavior=null;temporaryPose=null;clearTimeout(temporaryPoseTimer);
       if(behaviorProp)behaviorProp.hidden=true;

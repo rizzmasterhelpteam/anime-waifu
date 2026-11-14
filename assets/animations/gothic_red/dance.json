@@ -1,0 +1,27 @@
+{
+  "id": "dance-primary",
+  "fps": 24,
+  "frameCount": 240,
+  "duration": 10.0,
+  "width": 320,
+  "height": 420,
+  "columns": 6,
+  "framesPerPage": 24,
+  "pages": [
+    "assets/animations/gothic_red/dance-00.webp",
+    "assets/animations/gothic_red/dance-01.webp",
+    "assets/animations/gothic_red/dance-02.webp",
+    "assets/animations/gothic_red/dance-03.webp",
+    "assets/animations/gothic_red/dance-04.webp",
+    "assets/animations/gothic_red/dance-05.webp",
+    "assets/animations/gothic_red/dance-06.webp",
+    "assets/animations/gothic_red/dance-07.webp",
+    "assets/animations/gothic_red/dance-08.webp",
+    "assets/animations/gothic_red/dance-09.webp"
+  ],
+  "source": "Person_dancing_on_green_screen_76c716b8_1080p.mp4",
+  "anchor": [
+    0.5,
+    1
+  ]
+}

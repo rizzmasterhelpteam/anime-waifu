@@ -403,9 +403,17 @@
       return this.batchLoadPromise;
     }
 
+    async prepareDance() {
+      if(!root.WAIFU_DANCE)throw Error('Reload the extension to load dance playback');
+      this.dancePlayer??=new root.WAIFU_DANCE.SpriteDance();
+      return this.dancePlayer.prepare(this.modelKey);
+    }
+
     async setModelKey(modelKey) {
       const cleanKey = modelKey === "gothic_red" ? "gothic_red" : "seraphina";
       if (this.modelKey === cleanKey) return;
+      this.dancePlayer?.release();
+      this.behavior=null;
       this.modelKey = cleanKey;
       for (const bmp of this.sprites.values()) bmp.close?.();
       this.sprites.clear();
@@ -525,7 +533,7 @@
           this.rafId = null;
           return;
         }
-        if (now - this.lastFrameTime >= 1000 / 30 - 0.5) this.renderFrame(now);
+        if (now - this.lastFrameTime >= 1000 / (this.behavior?.id === "dance" ? 60 : 30) - 0.5) this.renderFrame(now);
         this.rafId = requestAnimationFrame(tick);
       };
       this.rafId = requestAnimationFrame(tick);
@@ -539,6 +547,7 @@
     }
 
     destroy() {
+      this.dancePlayer?.release();
       this.destroyed = true;
       this.stopLoop();
       for (const bmp of this.sprites.values()) {
@@ -634,6 +643,16 @@
       const dragLerp = 1 - Math.exp(-14 * dt);
       this.smoothDragLag += (this.dragVelX - this.smoothDragLag) * dragLerp;
       this.dragVelX *= Math.exp(-10 * dt);
+
+      if(this.behavior?.id==='dance' && this.dancePlayer?.meta && now<this.behavior.until && this.microMotion){
+        this.danceWasPlaying=true;
+        ctx.clearRect(0,0,w,h);
+        const duration=this.dancePlayer.meta.duration,blend=root.WAIFU_DANCE.weight((now-this.behavior.start)/1000,duration);
+        const idle=this.sprites.get('idle');
+        if(idle && blend<1){ctx.save();ctx.globalAlpha=1-blend;ctx.drawImage(idle,w*.055,h*.04,w*.89,h*.93);ctx.restore();}
+        if(this.dancePlayer.draw(ctx,this.behavior,now,w*.055,h*.04,w*.89,h*.93))return;
+        this.behavior=null;console.warn('Dance buffering failed; returning to idle');
+      }else if(this.danceWasPlaying){this.dancePlayer?.release();this.danceWasPlaying=false;}
 
       const frame = this.resolveActiveFrame(now);
       const activeImg = this.sprites.get(frame.key) || this.sprites.get("idle");

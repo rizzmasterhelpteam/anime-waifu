@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.6.4**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.7.0**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -12,11 +12,13 @@ A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D an
 
 ## Personality behavior
 
-Both render modes share a local, code-only attention brain and choreography. Auto progresses through relaxed waiting, gardening with a plant prop, a short dance, a brief playful pout and a longer independent recovery. Stages use randomized 90–120 seconds of eligible time; recovery lasts 4–6 minutes. Seraphina is relaxed and teasing; Crimson is more dramatic and energetic. A tap during a pout can trigger one bounded sidestep and a short look-away cooldown, followed by normal interaction. Tapping during gardening acknowledges the user with the plant.
+Both render modes share a local, code-only attention brain and choreography. Playful progresses through relaxed waiting, gardening with a plant prop, a short dance, a brief playful pout and a longer independent recovery. Stages use randomized 90–120 seconds of eligible time; recovery lasts 4–6 minutes. Seraphina is relaxed and teasing; Crimson is more dramatic and energetic. A tap during a pout can trigger one bounded sidestep and a short look-away cooldown, followed by normal interaction. Tapping during gardening acknowledges the user with the plant.
 
 Choose **Playful** (default: autonomous activities and attention reactions) or **Calm** (peaceful idle, combining the old Stay/Quiet controls). Auto and the separate frequency control have been removed. Existing Auto/Balanced preferences migrate to Playful; Calm preferences are preserved. Tap the character to interact. The dashboard and character toolbar expose only Calm and Playful; walking, dancing and gardening are selected automatically by Playful, with no separate activity buttons. Playful re-enables movement and page stroll, greets immediately, and makes the first walk eligible after about 15 seconds. Mode controls report connection failures. Mode selections match between the dashboard and page toolbar. Attention progression pauses during focus/break sessions, dragging, movement, hidden/unfocused tabs, full-screen blocking, five minutes without page activity, and disabled animation. Mouse movement indicates device activity but does not count as affection. Manual clicks and drags count as attention. Notifications retain their factual content with character-specific bubble wording. While typing, automatic chatter and strolls are deferred; background mood progression continues. No API calls or payment changes are involved.
 
-The same timing and motion parameters drive both renderers; sprite transforms and existing illustrations represent the 2D actions, while VRM joints represent them in 3D. The garden is a lightweight SVG prop rather than a new 3D environment. Brain state is session-local: it does not yet persist mood or plant growth across reloads. `npm run test:behavior` verifies the state machine, pause semantics, cooldowns and shared motion bounds.
+Both renderers share behavior timing. Dance now uses 24 FPS transparent video-derived frames in 2D and authored GLB skeletal tracks in 3D, replacing the celebration-and-bounce substitute. Other activities retain their existing rendering. The garden is a lightweight SVG prop rather than a new 3D environment. Brain state is session-local: it does not yet persist mood or plant growth across reloads. `npm run test:behavior` verifies the state machine, pause semantics, cooldowns and shared motion bounds.
+
+See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for source selection, reproducible processing, playback budgets and limitations.
 
 ## Install
 1. Clone or download this repository.

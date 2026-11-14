@@ -1,0 +1,27 @@
+{
+  "id": "dance-primary",
+  "fps": 24,
+  "frameCount": 240,
+  "duration": 10.0,
+  "width": 320,
+  "height": 420,
+  "columns": 6,
+  "framesPerPage": 24,
+  "pages": [
+    "assets/animations/seraphina/dance-00.webp",
+    "assets/animations/seraphina/dance-01.webp",
+    "assets/animations/seraphina/dance-02.webp",
+    "assets/animations/seraphina/dance-03.webp",
+    "assets/animations/seraphina/dance-04.webp",
+    "assets/animations/seraphina/dance-05.webp",
+    "assets/animations/seraphina/dance-06.webp",
+    "assets/animations/seraphina/dance-07.webp",
+    "assets/animations/seraphina/dance-08.webp",
+    "assets/animations/seraphina/dance-09.webp"
+  ],
+  "source": "Person_dancing_on_green_screen_8cbd46c3_1080p.mp4",
+  "anchor": [
+    0.5,
+    1
+  ]
+}
