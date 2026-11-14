@@ -1,0 +1,8 @@
+project_id = "anime-waifu"
+
+[functions.companion-chat]
+# The function validates the bearer token with Auth before accessing data or Gemini.
+verify_jwt = false
+
+[functions.auth-complete]
+verify_jwt = false

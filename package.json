@@ -1,0 +1,31 @@
+{
+  "name": "anime-wifu",
+  "version": "1.4.0",
+  "description": "Animated browser companions with optional Supabase accounts, settings sync and protected Gemini chat.",
+  "main": "background.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build:auth": "esbuild shared/auth-entry.js --bundle --format=iife --global-name=WAIFU_AUTH_VENDOR --platform=browser --target=chrome110 --outfile=vendor/auth-bundle.js --minify",
+    "test:cloud": "node tests/cloud-backend-review.cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rizzmasterhelpteam/anime-waifu.git"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/rizzmasterhelpteam/anime-waifu/issues"
+  },
+  "homepage": "https://github.com/rizzmasterhelpteam/anime-waifu#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "private": true
+}

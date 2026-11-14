@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.3.0**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.4.0**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -8,7 +8,7 @@ A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D an
 - A compact dashboard with a static thumbnail and optional live preview.
 - Focus/break timers, editable speech bubbles and background tab notifications.
 - Deferred renderer loading, direct binary model fetching, automatic 2D fallback and page retry.
-- Local settings and bundled assets. Authentication and hosted AI APIs are not configured yet.
+- Local settings and bundled assets, plus optional Supabase accounts, settings sync and Gemini chat. See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for required provider credentials.
 
 ## Install
 1. Clone or download this repository.

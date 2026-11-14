@@ -1,6 +1,6 @@
 "use strict";
 
-importScripts("shared/defaults.js", "shared/model-store.js");
+importScripts("shared/defaults.js", "shared/model-store.js", "shared/cloud-config.js", "vendor/auth-bundle.js", "shared/cloud-service.js");
 
 const { DEFAULT_SETTINGS, DEFAULT_TIMER, DEFAULT_STATS, ALL_SPRITE_FILES, normalizeMotionQuotes } = globalThis.WAIFU_SHARED;
 const WAIFU_MODEL_STORE = globalThis.WAIFU_MODEL_STORE;
@@ -339,6 +339,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== "object") return false;
 
   (async () => {
+    if (typeof msg.type === 'string' && msg.type.startsWith('CLOUD_')) {
+      if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL('popup/'))) {
+        sendResponse({ok:false,error:'Open the extension dashboard to use account features'});return;
+      }
+      try {
+        if (!globalThis.WAIFU_CLOUD) importScripts('shared/cloud-config.js','vendor/auth-bundle.js','shared/cloud-service.js');
+        sendResponse(await WAIFU_CLOUD.handle(msg));
+      } catch (err) { sendResponse({ok:false,error:String(err?.message || 'Cloud request failed')}); }
+      return;
+    }
     if (msg.type === "UPDATE_SETTINGS") {
       try { sendResponse({ ok: true, settings: await updateSettings(msg.patch || {}) }); }
       catch (err) { sendResponse({ ok: false, error: String(err) }); }

@@ -5,6 +5,8 @@
 *.key
 /work/
 node_modules/
+/supabase/.temp/
+/supabase/.branches/
 __pycache__/
 *.py[cod]
 *.log
