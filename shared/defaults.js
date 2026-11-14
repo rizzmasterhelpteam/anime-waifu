@@ -397,6 +397,33 @@
     }
   }
 
+  // Internal activity rarity; never exposed as dashboard settings.
+  class ActivityDirector {
+    constructor(random=Math.random,now=0){this.random=random;this.nextAt=now+3000;this.lastAt={};this.last=null;}
+    defer(now){this.nextAt=now+3000+this.random()*3000;}
+    pick(now,walkAllowed=true){
+      const entries=[['walk',70,0],['dance',15,45000],['garden',10,60000],['rest',5,90000]]
+        .filter(([id,,cooldown])=>(id!=='walk'||walkAllowed)&&now-(this.lastAt[id]??-Infinity)>=cooldown&&(id==='walk'||id!==this.last));
+      const total=entries.reduce((sum,e)=>sum+e[1],0);if(!total)return null;
+      let roll=this.random()*total;
+      for(const [id,weight]of entries){roll-=weight;if(roll<0){this.last=id;this.lastAt[id]=now;return id;}}
+      return entries[entries.length-1][0];
+    }
+  }
+
+  function wanderDestination(position,width,height,size,random=Math.random){
+    const maxRight=Math.max(8,width-Math.round(size*460/600)-8),maxBottom=Math.max(8,height-size-8);
+    let best={right:8,bottom:8},bestDistance=-1;
+    // Sample the whole available viewport, favouring a meaningful journey.
+    for(let i=0;i<5;i++){
+      const point={right:8+random()*(maxRight-8),bottom:8+random()*(maxBottom-8)};
+      const distance=Math.hypot(point.right-position.right,point.bottom-position.bottom);
+      if(distance>bestDistance){best=point;bestDistance=distance;}
+      if(distance>=Math.min(220,size*.8))return point;
+    }
+    return best;
+  }
+
   function behaviorMotion(behavior, now) {
     const zero={x:0,y:0,roll:0,turn:0,bend:0,arm:0,weight:0};
     if(!behavior || now>=behavior.until) return zero;
@@ -413,6 +440,8 @@
 
   root.WAIFU_SHARED = {
     CompanionBrain,
+    ActivityDirector,
+    wanderDestination,
     behaviorMotion,
     SPRITE_POSES,
     WALK_SPRITES,

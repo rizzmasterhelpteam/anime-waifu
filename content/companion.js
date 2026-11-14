@@ -20,9 +20,9 @@
   const brain = new window.WAIFU_SHARED.CompanionBrain();
   let lastPageActivity = Date.now();
   let behaviorRequest=0;
-  let nextStrollAt = performance.now()+20000;
-  let introPending=true;
-  let introAt=performance.now()+6000;
+  const routine=new window.WAIFU_SHARED.ActivityDirector(Math.random,performance.now());
+  let activityLoading=false;
+  let lastBehaviorBubble=-Infinity;
   let behaviorProp = null;
   let behaviorPropTimer = null;
   const HOST_ID = "seraphina-waifu-companion-host";
@@ -159,6 +159,7 @@
   }
 
   function resolveEffectivePose() {
+    if(settings.interactionFrequency==='quiet')return 'idle';
     if (temporaryPose) return temporaryPose;
     if (settings.poseMode && settings.poseMode !== "auto") {
       return settings.poseMode;
@@ -255,6 +256,10 @@
   }
 
   function triggerTemporaryPose(poseId, durationMs = 3600, quote = null) {
+    if(settings.interactionFrequency==='quiet'){
+      if(quote)showBubble(quote,durationMs);
+      animator?.setPose('idle',false);return;
+    }
     if (temporaryPoseTimer) clearTimeout(temporaryPoseTimer);
     temporaryPose = poseId;
     if (animator) {
@@ -290,7 +295,9 @@
   function runSmoothStroll(deltaR, durationMs, options = {}) {
     const startR = settings.position?.right ?? 24;
     const startB = settings.position?.bottom ?? 18;
-    const moveDirX = -deltaR;
+    const deltaB=Number(options.deltaBottom)||0;
+    const distance=Math.hypot(deltaR,deltaB);
+    const moveDirX = Math.abs(deltaR)>2?-deltaR:(Math.random()<.5?-1:1);
     const startTs = performance.now();
 
     applyPosition();
@@ -306,7 +313,7 @@
         !isStrolling ||
         isDragging ||
         document.hidden ||
-        (options.respectAutoMode && (isHovered || settings.poseMode !== "auto" || !settings.autoStroll))
+        (options.respectAutoMode && (isHovered || settings.poseMode !== "auto" || settings.interactionFrequency==='quiet' || timer?.status==='running' || !settings.autoStroll))
       ) {
         stopStroll();
         if (typeof options.onInterrupt === "function") options.onInterrupt();
@@ -325,13 +332,13 @@
         ease = (p - ramp * 0.5) / (1 - ramp);
         velocity = 1 / (1 - ramp);
       }
-      const speed = Math.abs(deltaR) * velocity / (durationMs * 0.001);
+      const speed = distance * velocity / (durationMs * 0.001);
       animator?.setWalking(true, moveDirX, speed);
-      const nextPos = clampPosition(startR + deltaR * ease, startB, settings.sizePx, false);
+      const nextPos = clampPosition(startR + deltaR * ease, startB + deltaB * ease, settings.sizePx, false);
       strollOffsetX = -(nextPos.right - startR);
       settings.position = nextPos;
       if (wrapEl) {
-        wrapEl.style.transform = `translate3d(${strollOffsetX.toFixed(2)}px, 0, 0)`;
+        wrapEl.style.transform = `translate3d(${strollOffsetX.toFixed(2)}px, ${(-(nextPos.bottom-startB)).toFixed(2)}px, 0)`;
       }
 
       if (p < 1) {
@@ -339,7 +346,7 @@
       } else {
         strollRafId = null;
         isStrolling = false;
-        settings.position = clampPosition(startR + deltaR, startB, settings.sizePx, true);
+        settings.position = clampPosition(startR + deltaR, startB + deltaB, settings.sizePx, true);
         applyPosition();
         if (animator) {
           animator.setWalking(false);
@@ -364,14 +371,12 @@
 
     const startR = settings.position?.right ?? 24;
     const startB = settings.position?.bottom ?? 18;
-    const delta = (Math.random() < 0.5 ? -1 : 1) * (displaySize() * (0.45 + Math.random() * 0.45));
-    let target = clampPosition(startR + delta, startB, settings.sizePx);
-    let actualDeltaR = target.right - startR;
-    if(Math.abs(actualDeltaR)<25){target=clampPosition(startR-delta,startB,settings.sizePx);actualDeltaR=target.right-startR;}
-    if (Math.abs(actualDeltaR) < 25) return false;
-
-    const durationMs = Math.max(900, Math.abs(actualDeltaR) / (displaySize() * 0.42) * 1000);
-    runSmoothStroll(actualDeltaR, durationMs, { markIdle: true, respectAutoMode: true });
+    const target=window.WAIFU_SHARED.wanderDestination({right:startR,bottom:startB},window.innerWidth,window.innerHeight,displaySize());
+    const actualDeltaR=target.right-startR,deltaBottom=target.bottom-startB;
+    const distance=Math.hypot(actualDeltaR,deltaBottom);
+    if(distance<25)return false;
+    const durationMs=Math.max(1200,distance/(displaySize()*.48)*1000);
+    runSmoothStroll(actualDeltaR,durationMs,{deltaBottom,markIdle:true,respectAutoMode:true});
     return true;
   }
 
@@ -440,6 +445,7 @@
   }
 
   function walkAndPerform(poseId, durationMs, quote) {
+    if(settings.interactionFrequency==='quiet'){if(quote)showBubble(quote,durationMs);return;}
     if (!animator || !wrapEl || isDragging || isHovered || document.hidden || isFullscreenActive() || !settings.autoStroll || !settings.microMotion) {
       triggerTemporaryPose(poseId, durationMs, quote);
       return;
@@ -473,19 +479,27 @@
 
     autoBehaviorTimer = setTimeout(() => {
       autoBehaviorTimer=null;
-      if(!hostEl) return;
-      const paused=document.hidden || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || timer?.status==='running' || !settings.microMotion;
-      const action=brain.tick(performance.now(),paused,settings.interactionFrequency);
-      if(!paused && settings.interactionFrequency!=='quiet' && introPending && performance.now()>=introAt){
-        introPending=false;nextStrollAt=performance.now()+14000;
-        performBehavior('dance');
-      }else if(action) performBehavior(action);
-      else if(!paused && settings.interactionFrequency!=='quiet' && settings.autoStroll && brain.stage!==3 && !isUserTypingNow() && performance.now()>=nextStrollAt){
-        const moved=startStroll();
-        nextStrollAt=performance.now()+(moved?60000+Math.random()*30000:5000);
+      if(!hostEl)return;
+      const now=performance.now();
+      const paused=document.hidden||isFullscreenBlocked()||timer?.status==='running'||!settings.microMotion||settings.interactionFrequency==='quiet';
+      const busy=isDragging||isStrolling||temporaryPose||activityLoading;
+      const mood=brain.tick(now,paused||busy,settings.interactionFrequency);
+      if(paused||busy)routine.defer(now);
+      else if(mood==='pout'){
+        activityLoading=true;
+        Promise.resolve(performBehavior('pout')).finally(()=>{activityLoading=false;});
+      }else if(now>=routine.nextAt){
+        const action=routine.pick(now,settings.autoStroll&&!isHovered);
+        routine.defer(now);
+        if(action==='walk'){
+          if(!startStroll())routine.nextAt=now+3000;
+        }else if(action){
+          activityLoading=true;
+          Promise.resolve(performBehavior(action)).finally(()=>{activityLoading=false;});
+        }
       }
       scheduleAutoBehavior();
-    }, 2000);
+    },1000);
   }
 
   const personalityLines={
@@ -493,7 +507,7 @@
     gothic_red:{garden:["This little plant is getting the royal treatment!","Grow, little one! I'll supervise."],dance:["Hey! You're missing my best moves!","Look at me! I practiced this one!"],pout:["Hmph. I'm being dramatically unbothered."],rest:["Fine, little break. I'll entertain myself."],sidestep:["Hmph! Give me a second…"],showPlant:["Look! My plant! Isn't it doing great?"],greet:["There you are! What shall we do?","Aha! You noticed me!"]}
   };
   async function performBehavior(id, manual=false) {
-    if(!animator || document.hidden || (!manual && timer?.status==='running')) return;
+    if(!animator || document.hidden || settings.interactionFrequency==='quiet' || (!manual && timer?.status==='running')) return;
     if(manual){animator.setMicroMotion(true);animator.setPaused(false);}
 
     const request=++behaviorRequest,instance=animator;
@@ -509,7 +523,10 @@
     const actualDuration=id==='dance'?danceDuration*1000:duration;
     const pose=id==='greet'?'wave':id==='dance'?'idle':id==='rest'?'tea':id==='pout'?'think':'idle';
     const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
-    triggerTemporaryPose(pose,actualDuration,lines && (manual || !isUserTypingNow())?lines[Math.floor(Math.random()*lines.length)]:null);
+    const canChat=manual||(!isUserTypingNow()&&performance.now()-lastBehaviorBubble>30000);
+    const quote=lines&&canChat?lines[Math.floor(Math.random()*lines.length)]:null;
+    if(quote)lastBehaviorBubble=performance.now();
+    triggerTemporaryPose(pose,actualDuration,quote);
     animator.behavior={id,start:performance.now(),until:performance.now()+actualDuration,crimson,manual};
     if(behaviorPropTimer)clearTimeout(behaviorPropTimer);
     if(behaviorProp){
@@ -956,7 +973,7 @@
         createShadowUI();
         return;
       }
-      if (settings.greetOnLoad && settings.poseMode === "auto" && !isFullscreenBlocked() && (!timer || timer.status !== "running")) {
+      if (settings.greetOnLoad && settings.interactionFrequency!=="quiet" && settings.poseMode === "auto" && !isFullscreenBlocked() && (!timer || timer.status !== "running")) {
         const greetCat = settings.smartRoles !== false && Math.random() < 0.65
           ? getTimePeriodCategory()
           : "greeting";
@@ -967,7 +984,7 @@
       animator.setPaused(document.hidden || isFullscreenBlocked());
       loadingImage.remove();
       hostEl.dataset.state = "ready";
-      introPending=true;introAt=performance.now()+6000;nextStrollAt=performance.now()+20000;
+      routine.nextAt=performance.now()+3000;
       animator.start();
       scheduleAutoBehavior(true);
       scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
@@ -1264,6 +1281,9 @@
 
   function handleClickReaction() {
     if (!animator) return;
+    if(settings.interactionFrequency==='quiet'){
+      if(performance.now()-lastBehaviorBubble>2500){lastBehaviorBubble=performance.now();showBubble("I'm right here. Keeping things peaceful.",2500);}return;
+    }
     if (timer && timer.status === "running") {
       const mins = Math.max(1, Math.ceil((timer.targetEndMs ? Math.max(0, timer.targetEndMs - Date.now()) : timer.remainingSeconds * 1000) / 60000));
       const label = timer.phase === "focus" ? "focus" : "break";
@@ -1490,8 +1510,7 @@
     }else if(action==='auto'||action==='playful'){
       settings.poseMode='auto';settings.interactionFrequency='playful';
       settings.microMotion=true;settings.autoStroll=true;
-      brain.stage=0;brain.elapsed=0;brain.last=performance.now();nextStrollAt=performance.now()+15000;
-      introPending=true;introAt=performance.now()+6000;
+      brain.stage=0;brain.elapsed=0;brain.last=performance.now();routine.nextAt=performance.now()+3000;
       performBehavior('greet',true);scheduleAutoBehavior();
     }else if(action==='walk'){
       const right=settings.position?.right??24;
