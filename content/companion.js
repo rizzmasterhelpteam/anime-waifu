@@ -191,7 +191,7 @@
     btns.forEach((btn) => {
       const id = btn.getAttribute("data-pose");
       const quiet=settings.interactionFrequency==='quiet';
-      const selected=quiet||settings.poseMode==='idle'?'calm':settings.interactionFrequency==='playful'?'playful':'auto';
+      const selected=quiet||settings.poseMode==='idle'?'calm':'playful';
       const isActive=id===selected;
       btn.classList.toggle("active", isActive);
     });
@@ -755,7 +755,7 @@
       openToolbar(8000);
     }, { passive: true });
 
-    const quickPoses = [{id:'auto',label:'Auto'},{id:'calm',label:'Calm'},{id:'playful',label:'Playful'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
+    const quickPoses = [{id:'calm',label:'Calm'},{id:'playful',label:'Playful'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
     for (const p of quickPoses) {
       const b = document.createElement("button");
       b.type = "button";
@@ -1405,6 +1405,7 @@
 
   function normalizeSettingsObj(raw) {
     const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
+    merged.interactionFrequency=merged.interactionFrequency==='quiet'?'quiet':'playful';
     const defAlerts = DEFAULT_SETTINGS.tabAlerts || { enabled: true, pose: "celebrate", apps: {}, customDomains: [] };
     merged.tabAlerts = {
       ...defAlerts,
@@ -1456,7 +1457,7 @@
       if(behaviorProp)behaviorProp.hidden=true;
       syncPose();scheduleAutoBehavior();
     }else if(action==='auto'||action==='playful'){
-      settings.poseMode='auto';settings.interactionFrequency=action==='playful'?'playful':'balanced';
+      settings.poseMode='auto';settings.interactionFrequency='playful';
       settings.microMotion=true;settings.autoStroll=true;
       brain.stage=0;brain.elapsed=0;brain.last=performance.now();nextStrollAt=performance.now()+15000;
       performBehavior('greet',true);scheduleAutoBehavior();

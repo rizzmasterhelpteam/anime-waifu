@@ -330,7 +330,7 @@
     depth25D: true,
     autoStroll: true,
     smartRoles: true,
-    interactionFrequency: "balanced",
+    interactionFrequency: "playful",
     wellnessReminder: true,
     showBubbles: true,
     greetOnLoad: true,

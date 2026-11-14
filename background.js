@@ -183,6 +183,7 @@ async function syncAlertBadge(timer, pendingObj) {
 
 function mergeSettings(existing) {
   const out = mergeDefaults(DEFAULT_SETTINGS, existing);
+  out.interactionFrequency=out.interactionFrequency==='quiet'?'quiet':'playful';
   out.motionQuotes = normalizeMotionQuotes(out.motionQuotes, existing?.customQuotes);
   delete out.customQuotes;
   return out;

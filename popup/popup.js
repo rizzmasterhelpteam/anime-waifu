@@ -116,6 +116,7 @@
 
   function normalizePopupSettings(raw) {
     const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
+    merged.interactionFrequency=merged.interactionFrequency==='quiet'?'quiet':'playful';
     const defAlerts = DEFAULT_SETTINGS.tabAlerts || { enabled: true, pose: "celebrate", apps: {}, customDomains: [] };
     merged.tabAlerts = {
       ...defAlerts,
@@ -287,7 +288,7 @@
     }
 
     els.poseBtns.forEach((b) => {
-      b.classList.toggle("active", b.dataset.mode === (settings.poseMode==='idle'||settings.interactionFrequency==='quiet'?'calm':settings.interactionFrequency==='playful'?'playful':'auto'));
+      b.classList.toggle("active", b.dataset.mode === (settings.poseMode==='idle'||settings.interactionFrequency==='quiet'?'calm':'playful'));
     });
 
     if (document.activeElement !== els.rangeSize) {
@@ -316,8 +317,6 @@
     const physicsOff = settings.bodyPhysics === false || !settings.microMotion;
     els.rangePhysics.disabled = els.rangeChest.disabled = els.btnPreviewPhysics.disabled = physicsOff;
     if (els.toggle25D) els.toggle25D.checked = settings.depth25D !== false;
-    const frequency=document.getElementById('interaction-frequency');
-    if(frequency)frequency.value=settings.interactionFrequency||'balanced';
     if (els.toggleStroll) els.toggleStroll.checked = settings.autoStroll !== false;
     if (els.toggleSmartRoles) els.toggleSmartRoles.checked = settings.smartRoles !== false;
     if (els.toggleWellness) els.toggleWellness.checked = settings.wellnessReminder !== false;
@@ -774,8 +773,8 @@
     els.poseBtns.forEach(btn=>btn.addEventListener('click',async()=>{
       const mode=btn.dataset.mode;
       const feedback=document.getElementById('behavior-feedback');
-      saveSettings({poseMode:'auto',interactionFrequency:mode==='calm'?'quiet':mode==='playful'?'playful':'balanced',...(mode==='calm'?{}:{microMotion:true,autoStroll:true})});
-      feedback.textContent=mode==='calm'?'Calm: peaceful idle; tap her or choose an activity anytime.':mode==='playful'?'Playful: a livelier autonomous routine.':'Auto: normal autonomous routine.';
+      saveSettings({poseMode:'auto',interactionFrequency:mode==='calm'?'quiet':'playful',...(mode==='calm'?{}:{microMotion:true,autoStroll:true})});
+      feedback.textContent=mode==='calm'?'Calm: peaceful idle; tap her or choose an activity anytime.':'Playful: activities, dancing and attention reactions.';
       try{
         const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
         const r=tab?.id&&await chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:mode});
