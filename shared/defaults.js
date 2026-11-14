@@ -330,6 +330,7 @@
     depth25D: true,
     autoStroll: true,
     smartRoles: true,
+    interactionFrequency: "balanced",
     wellnessReminder: true,
     showBubbles: true,
     greetOnLoad: true,
@@ -373,7 +374,46 @@
     cheerCount: 0
   };
 
+  // Event-driven personality state, shared by sprite and VRM renderers.
+  class CompanionBrain {
+    constructor(random = Math.random) { this.random=random; this.stage=0; this.elapsed=0; this.last=0; this.lastTouch=-Infinity; this.ignoreUntil=0; this.next=90000+random()*30000; }
+    tick(now, paused=false, frequency='balanced') {
+      const dt=this.last ? Math.max(0,Math.min(2500,now-this.last)) : 0; this.last=now;
+      if(paused || frequency==='quiet') return null;
+      this.elapsed+=dt;
+      if(this.elapsed<this.next) return null;
+      this.elapsed=0; this.stage=(this.stage+1)%5;
+      this.next=this.stage===4 ? 240000+this.random()*120000 : 90000+this.random()*30000;
+      if(frequency==='playful') this.next=Math.max(90000,this.next*.85);
+      return ['relax','garden','dance','pout','rest'][this.stage];
+    }
+    touch(now, crimson=false) {
+      if(now-this.lastTouch<1800 || now<this.ignoreUntil) return null;
+      this.lastTouch=now;
+      if(this.stage===3){this.stage=4;this.elapsed=0;this.next=90000+this.random()*30000;this.ignoreUntil=now+(crimson?5500:2800);return 'sidestep';}
+      const wasGarden=this.stage===1;
+      this.elapsed=0; this.stage=wasGarden?1:0; this.next=90000+this.random()*30000;
+      return wasGarden?'showPlant':'greet';
+    }
+  }
+
+  function behaviorMotion(behavior, now) {
+    const zero={x:0,y:0,roll:0,turn:0,bend:0,arm:0,weight:0};
+    if(!behavior || now>=behavior.until) return zero;
+    const t=Math.max(0,(now-behavior.start)/1000), remaining=(behavior.until-now)/1000;
+    const weight=Math.min(1,t/.6,remaining/.6), lively=behavior.crimson?1.25:0.8;
+    const m={...zero,weight};
+    if(behavior.id==='dance'){m.x=Math.sin(t*3.8)*.025*lively;m.y=-Math.pow(Math.sin(t*3.8),2)*.012;m.roll=Math.sin(t*3.8)*.065*lively;m.arm=(.5+.5*Math.sin(t*3.8))*.65;m.turn=Math.sin(t*1.9)*.18;}
+    if(behavior.id==='garden'||behavior.id==='showPlant'){m.bend=.14+Math.sin(t*1.8)*.035;m.roll=Math.sin(t*1.8)*.014;m.arm=.35+Math.sin(t*1.8)*.10;}
+    if(behavior.id==='pout'||behavior.id==='sidestep'){m.turn=(behavior.crimson?.6:.25);m.roll=behavior.crimson?-.035:.025;m.arm=-.45;}
+    if(behavior.id==='rest'){m.bend=.045;m.roll=Math.sin(t*.8)*.015;}
+    for(const key of ['x','y','roll','turn','bend','arm'])m[key]*=weight;
+    return m;
+  }
+
   root.WAIFU_SHARED = {
+    CompanionBrain,
+    behaviorMotion,
     SPRITE_POSES,
     WALK_SPRITES,
     EXTRA_SPRITES,

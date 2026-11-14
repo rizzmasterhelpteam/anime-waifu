@@ -768,6 +768,11 @@
         this.canvas.style.transform = "";
       }
 
+      if(this.microMotion && this.walkAmount<0.1){
+        const motion=root.WAIFU_SHARED.behaviorMotion?.(this.behavior,now);
+        if(motion){translateX+=motion.x*drawW;translateY+=motion.y*drawH;rotRad+=motion.roll+motion.bend*.15;scaleX*=1-Math.abs(motion.turn)*.12;}
+      }
+
       const regX = (frame.offsetX / 460) * drawW;
       const regY = (frame.offsetY / 600) * drawH;
 

@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.5.1**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.6.0**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -9,6 +9,14 @@ A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D an
 - Focus/break timers, editable speech bubbles and background tab notifications.
 - Deferred renderer loading, direct binary model fetching, automatic 2D fallback and page retry.
 - Local settings and bundled assets, plus optional Supabase accounts, settings sync and Gemini 3.8 Live voice conversations. See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for required provider credentials.
+
+## Personality behavior
+
+Both render modes share a local, code-only attention brain and choreography. Auto progresses through relaxed waiting, gardening with a plant prop, a short dance, a brief playful pout and a longer independent recovery. Stages use randomized 90–120 seconds of eligible time; recovery lasts 4–6 minutes. Seraphina is relaxed and teasing; Crimson is more dramatic and energetic. A tap during a pout can trigger one bounded sidestep and a short look-away cooldown, followed by normal interaction. Tapping during gardening acknowledges the user with the plant.
+
+Use **Auto**, **Stay here**, **Interact**, and **Quiet/Balanced/Playful** frequency controls. Attention progression pauses during focus/break sessions, typing, dragging, movement, hidden/unfocused tabs, full-screen blocking, five minutes without page activity, and disabled animation. Mouse movement indicates device activity but does not count as affection. Manual clicks and drags count as attention. Notifications retain their factual content with character-specific bubble wording. No API calls or payment changes are involved.
+
+The same timing and motion parameters drive both renderers; sprite transforms and existing illustrations represent the 2D actions, while VRM joints represent them in 3D. The garden is a lightweight SVG prop rather than a new 3D environment. Brain state is session-local: it does not yet persist mood or plant growth across reloads. `npm run test:behavior` verifies the state machine, pause semantics, cooldowns and shared motion bounds.
 
 ## Install
 1. Clone or download this repository.

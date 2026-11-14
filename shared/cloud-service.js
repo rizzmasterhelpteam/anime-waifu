@@ -5,7 +5,7 @@
  const client=WAIFU_AUTH_VENDOR.createClient(config.url,config.publishableKey,{auth:{storage:{getItem:k=>stored('readonly',k),setItem:(k,v)=>stored('readwrite',k,v),removeItem:k=>stored('readwrite',k,null)},persistSession:true,autoRefreshToken:false,detectSessionInUrl:false,flowType:'pkce'},global:{fetch:(url,init)=>fetch(url,{...init,signal:AbortSignal.timeout(15000)})}});
  let refreshing=null;
  async function session(){let {data,error}=await client.auth.getSession();if(error)throw error;if(data.session&&data.session.expires_at*1000<Date.now()+60000){refreshing??=client.auth.refreshSession().finally(()=>{refreshing=null;});const r=await refreshing;if(r.error)throw r.error;return r.data.session;}return data.session;}
- const fields=['name','activeModel','renderMode','sizePx','opacity','microMotion','bodyPhysics','physicsStrength','chestBounce','depth25D','autoStroll','cursorFollow','showBubbles','poseMode','motionQuotes'];
+ const fields=['name','activeModel','renderMode','sizePx','opacity','microMotion','bodyPhysics','physicsStrength','chestBounce','depth25D','autoStroll','interactionFrequency','cursorFollow','showBubbles','poseMode','motionQuotes'];
  const filter=s=>Object.fromEntries(fields.filter(k=>Object.hasOwn(s||{},k)).map(k=>[k,s[k]]));
  const checked=r=>{if(r.error)throw r.error;return r.data;};
  async function profile(user){checked(await client.from('profiles').upsert({id:user.id,display_name:String(user.user_metadata?.full_name||'').slice(0,60)},{onConflict:'id',ignoreDuplicates:true}));}

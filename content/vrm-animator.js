@@ -1155,6 +1155,19 @@
         rForeRy = 0.16;
       }
 
+      if(this.microMotion && wWalk<.1){
+        const motion=globalThis.WAIFU_SHARED?.behaviorMotion?.(this.behavior,now);
+        if(motion){
+          hipsRz+=motion.roll;hipsRy+=motion.turn;hipsPy-=motion.y*this.legLength;
+          spineRx+=motion.bend;headRx-=motion.bend*.5;headRy+=motion.turn*.3;
+          lArmRz+=Math.max(0,motion.arm)*.6;rArmRz-=Math.max(0,motion.arm)*.6;
+          lForeRy-=Math.max(0,motion.arm)*.6;rForeRy+=Math.max(0,motion.arm)*.6;
+          if(motion.arm<0){lArmRx-=motion.weight*.22;rArmRx-=motion.weight*.22;lForeRz+=motion.weight*1.1;rForeRz-=motion.weight*1.1;}
+          if(this.behavior?.id==='garden'||this.behavior?.id==='showPlant'){rArmRx-=motion.weight*.5;rForeRz-=motion.weight*.9;headRx+=motion.weight*.12;}
+          if(this.behavior?.id==='dance'){lKneeRx+=Math.max(0,motion.roll)*.9;rKneeRx+=Math.max(0,-motion.roll)*.9;}
+        }
+      }
+
       // Lively tactile click / pose-switch bounce driving Bust & Glute SpringBones
       const bounceAge = (now - this.bounceStart) * 0.001;
       if (bounceAge >= 0 && bounceAge < 0.62) {

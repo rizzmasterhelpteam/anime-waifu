@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Seraphina — Anime Waifu Companion",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Animated 2D and 3D companions with natural movement, distinct character designs, tab alerts and a focus timer.",
   "icons": {
     "16": "assets/icons/icon16.png",

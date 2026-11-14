@@ -74,15 +74,15 @@
           <button id="btn-reset-vrm" class="chip-btn ghost mini-btn" type="button">Reset</button>
         </div>
 
-        <div class="section-label">Mood</div>
+        <div class="section-label">Companion behavior</div>
         <div id="pose-grid" class="pose-grid">
           <button class="pose-btn" data-pose="auto" type="button">Auto</button>
-          <button class="pose-btn" data-pose="idle" type="button">Idle</button>
-          <button class="pose-btn" data-pose="wave" type="button">Wave</button>
-          <button class="pose-btn" data-pose="think" type="button">Think</button>
-          <button class="pose-btn" data-pose="celebrate" type="button">Cheer</button>
-          <button class="pose-btn" data-pose="tea" type="button">Tea Break</button>
+          <button class="pose-btn" data-pose="idle" type="button">Stay here</button>
+          <button data-behavior="interact" type="button">Interact</button>
         </div>
+        <label for="interaction-frequency">Attention &amp; chatter</label>
+        <select id="interaction-frequency"><option value="quiet">Quiet</option><option value="balanced">Balanced</option><option value="playful">Playful</option></select>
+        <p class="hint">Auto: relax, tend a plant, dance, playfully pout, then unwind. Quiet pauses attention-seeking.</p>
 
         <div class="control-group">
           <div class="control-row">

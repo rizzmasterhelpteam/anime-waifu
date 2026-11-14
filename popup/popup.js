@@ -316,6 +316,8 @@
     const physicsOff = settings.bodyPhysics === false || !settings.microMotion;
     els.rangePhysics.disabled = els.rangeChest.disabled = els.btnPreviewPhysics.disabled = physicsOff;
     if (els.toggle25D) els.toggle25D.checked = settings.depth25D !== false;
+    const frequency=document.getElementById('interaction-frequency');
+    if(frequency)frequency.value=settings.interactionFrequency||'balanced';
     if (els.toggleStroll) els.toggleStroll.checked = settings.autoStroll !== false;
     if (els.toggleSmartRoles) els.toggleSmartRoles.checked = settings.smartRoles !== false;
     if (els.toggleWellness) els.toggleWellness.checked = settings.wellnessReminder !== false;
@@ -779,6 +781,13 @@
       });
     });
 
+    document.getElementById('interaction-frequency')?.addEventListener('change',e=>saveSettings({interactionFrequency:e.target.value}));
+    document.querySelector('[data-behavior="interact"]')?.addEventListener('click',async()=>{
+      const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
+      if(tab?.id)chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:'interact'}).catch(()=>{});
+      previewAnimator?.triggerBounce?.();
+    });
+
     document.querySelectorAll(".size-preset").forEach(button => {
       button.addEventListener("click", () => {
         const sizePx = Number(button.dataset.size);
@@ -1121,7 +1130,8 @@
     // Replace canvas element cleanly because a canvas cannot switch 2D <-> WebGL context
     const stage = els.previewCanvas.parentElement;
     const freshCanvas = document.createElement("canvas");
-    freshCanvas.id = "preview-canvas";    freshCanvas.hidden = true;
+    freshCanvas.id = "preview-canvas";
+    freshCanvas.hidden = true;
     stage.replaceChild(freshCanvas, els.previewCanvas);
     els.previewCanvas = freshCanvas;
 

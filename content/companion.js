@@ -17,6 +17,10 @@
   const WaifuMeshAnimator = window.WaifuMeshAnimator;
   let WaifuVrmAnimator = window.WaifuVrmAnimator;
 
+  const brain = new window.WAIFU_SHARED.CompanionBrain();
+  let lastPageActivity = Date.now();
+  let behaviorProp = null;
+  let behaviorPropTimer = null;
   const HOST_ID = "seraphina-waifu-companion-host";
 
   let settings = { ...DEFAULT_SETTINGS };
@@ -43,7 +47,6 @@
   let autoBehaviorTimer = null;
   let motionChatterTimer = null;
   let dragWalkStopTimer = null;
-  const TAP_POSE_SEQUENCE = ["wave", "think", "celebrate", "tea", "auto"];
   let strollRafId = null;
   let isStrolling = false;
   let isHovered = false;
@@ -170,6 +173,12 @@
 
   function syncPose() {
     if (!animator) return;
+    if(timer?.status==='running' || settings.interactionFrequency==='quiet'){
+      animator.behavior=null;
+      if(behaviorProp)behaviorProp.hidden=true;
+      if(temporaryPoseTimer)clearTimeout(temporaryPoseTimer);
+      temporaryPose=null;
+    }
     const pose = resolveEffectivePose();
     animator.setPose(pose, false);
     updateToolbarActiveState(pose);
@@ -220,38 +229,9 @@
     return pool[idx];
   }
 
-  function scheduleMotionChatter(delayMs = MOTION_CHATTER_INTERVAL_MS) {
-    if (motionChatterTimer) {
-      clearTimeout(motionChatterTimer);
-      motionChatterTimer = null;
-    }
-    if (!hostEl || settings.enabled === false) return;
-
-    motionChatterTimer = setTimeout(() => {
-      motionChatterTimer = null;
-      if (!hostEl || settings.enabled === false) return;
-
-      if (document.hidden || isDragging || isFullscreenBlocked() || !settings.showBubbles) {
-        scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-        return;
-      }
-
-      const elapsedSinceBubble = Date.now() - lastBubbleShownAt;
-      if (elapsedSinceBubble < MOTION_CHATTER_INTERVAL_MS - 400) {
-        scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS - elapsedSinceBubble);
-        return;
-      }
-
-      const activeMotion = settings.poseMode && settings.poseMode !== "auto"
-        ? settings.poseMode
-        : (temporaryPose || resolveEffectivePose());
-      const q = pickMotionQuote(activeMotion);
-      if (q) {
-        showBubble(q, 5200);
-      } else {
-        scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-      }
-    }, Math.max(500, delayMs));
+  function scheduleMotionChatter() {
+    if(motionChatterTimer)clearTimeout(motionChatterTimer);
+    motionChatterTimer=null;
   }
 
   function showBubble(text, durationMs = 4500) {
@@ -482,65 +462,42 @@
     }
     if (!hostEl || settings.poseMode !== "auto") return;
 
-    const delayMs = immediateSoon
-      ? 3600 + Math.floor(Math.random() * 1400)
-      : 4200 + Math.floor(Math.random() * 4400);
-
     autoBehaviorTimer = setTimeout(() => {
-      autoBehaviorTimer = null;
-      if (!hostEl || settings.poseMode !== "auto") return;
-      ensureAttached();
-
-      if (document.hidden || isDragging || isStrolling || temporaryPose || isFullscreenActive() || isUserTypingNow() || (timer && timer.status === "running")) {
-        scheduleAutoBehavior();
-        return;
-      }
-
-      if (isHovered) {
-        scheduleAutoBehavior(true);
-        return;
-      }
-
-      const siteKind = settings.smartRoles !== false ? classifyDomain(getCurrentHostname()) : "general";
-      const roll = Math.random();
-
-      if (siteKind === "work") {
-        // Focused companion mood on coding/study/docs sites
-        if (roll < 0.16 && settings.autoStroll && settings.microMotion) {
-          startStroll();
-        } else if (roll < 0.68) {
-          triggerTemporaryPose("think", 4400, Math.random() < 0.35 ? pickQuote("think") : null);
-        } else if (roll < 0.88) {
-          triggerTemporaryPose("tea", 8200, Math.random() < 0.3 ? pickQuote("tea") : null);
-        } else {
-          triggerTemporaryPose("wave", 2800, null);
-        }
-      } else if (siteKind === "relax") {
-        // Cozy companion mood on leisure/media sites
-        if (roll < 0.24 && settings.autoStroll && settings.microMotion) {
-          startStroll();
-        } else if (roll < 0.68) {
-          triggerTemporaryPose("tea", 8200, Math.random() < 0.4 ? pickQuote("tea") : null);
-        } else if (roll < 0.86) {
-          triggerTemporaryPose("celebrate", 2800, Math.random() < 0.35 ? pickQuote("celebrate") : null);
-        } else {
-          triggerTemporaryPose("wave", 2800, null);
-        }
-      } else {
-        if (roll < 0.28 && settings.autoStroll && settings.microMotion) {
-          startStroll();
-        } else if (roll < 0.50) {
-          triggerTemporaryPose("think", 3800, Math.random() < 0.38 ? pickQuote("think") : null);
-        } else if (roll < 0.74) {
-          triggerTemporaryPose("tea", 8200, Math.random() < 0.38 ? pickQuote("tea") : null);
-        } else if (roll < 0.88) {
-          triggerTemporaryPose("wave", 3000, Math.random() < 0.32 ? pickMotionQuote("wave") : null);
-        } else {
-          triggerTemporaryPose("celebrate", 2800, Math.random() < 0.32 ? pickQuote("celebrate") : null);
-        }
-      }
+      autoBehaviorTimer=null;
+      if(!hostEl) return;
+      const paused=document.hidden || !document.hasFocus() || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || isUserTypingNow() || timer?.status==='running' || !settings.microMotion;
+      const action=brain.tick(performance.now(),paused,settings.interactionFrequency);
+      if(action) performBehavior(action);
       scheduleAutoBehavior();
-    }, delayMs);
+    }, 2000);
+  }
+
+  const personalityLines={
+    seraphina:{garden:["A little patience, a little sunshine. Rather like you.","I'm tending my little garden. You keep doing your thing."],dance:["A little intermission. You may admire quietly.","Careful, I might catch you watching."],pout:["Oh, now I'm part of the scenery? How charming."],rest:["I'll enjoy a little quiet time."],sidestep:["Oh, now you noticed?"],showPlant:["Look what I've been growing."],greet:["There you are. I was perfectly entertained, of course.","You have my attention. Use it wisely."]},
+    gothic_red:{garden:["This little plant is getting the royal treatment!","Grow, little one! I'll supervise."],dance:["Hey! You're missing my best moves!","Look at me! I practiced this one!"],pout:["Hmph. I'm being dramatically unbothered."],rest:["Fine, little break. I'll entertain myself."],sidestep:["Hmph! Give me a second…"],showPlant:["Look! My plant! Isn't it doing great?"],greet:["There you are! What shall we do?","Aha! You noticed me!"]}
+  };
+  function performBehavior(id) {
+    if(!animator || document.hidden || timer?.status==='running') return;
+    const crimson=settings.activeModel==='gothic_red';
+    const duration={garden:20000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
+    const pose=id==='greet'?'wave':id==='dance'?'celebrate':id==='rest'?'tea':id==='pout'?'think':'idle';
+    const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
+    triggerTemporaryPose(pose,duration,lines?lines[Math.floor(Math.random()*lines.length)]:null);
+    animator.behavior={id,start:performance.now(),until:performance.now()+duration,crimson};
+    if(behaviorPropTimer)clearTimeout(behaviorPropTimer);
+    if(behaviorProp){
+      behaviorProp.hidden=!(id==='garden'||id==='showPlant');
+      behaviorProp.animate?.([{transform:'translateY(3px) rotate(-2deg)'},{transform:'translateY(0) rotate(2deg)'}],{duration:1800,iterations:Math.ceil(duration/1800),direction:'alternate',easing:'ease-in-out'});
+    }
+    behaviorPropTimer=setTimeout(()=>{
+      if(behaviorProp)behaviorProp.hidden=true;
+      if(id==='pout' && brain.stage===3){brain.stage=4;brain.elapsed=0;brain.next=240000+Math.random()*120000;}
+    },duration);
+    if(id==='sidestep' && settings.autoStroll && settings.microMotion){
+      const right=settings.position?.right??24;
+      const candidate=clampPosition(right+65,settings.position?.bottom??18,settings.sizePx,false);
+      runSmoothStroll(Math.abs(candidate.right-right)>20?candidate.right-right:-55,850,{onComplete:()=>{if(animator)animator.setPose('idle',false);}});
+    }
   }
 
   let toolbarOpenTimer = null;
@@ -789,14 +746,7 @@
       openToolbar(8000);
     }, { passive: true });
 
-    const quickPoses = [
-      { id: "auto", label: "Auto" },
-      { id: "idle", label: "Idle" },
-      { id: "wave", label: "Wave" },
-      { id: "think", label: "Think" },
-      { id: "celebrate", label: "Cheer" },
-      { id: "tea", label: "Tea" }
-    ];
+    const quickPoses = [{id:'auto',label:'Auto'},{id:'idle',label:'Stay'},{id:'interact',label:'Interact'},{id:'quiet',label:'Quiet'}];
     for (const p of quickPoses) {
       const b = document.createElement("button");
       b.type = "button";
@@ -814,7 +764,9 @@
         e.stopPropagation();
         openToolbar(750);
         stopStroll();
-        const nextMode = p.id;
+        if(p.id==='interact'){handleClickReaction();return;}
+        settings.interactionFrequency=p.id==='quiet'?'quiet':'balanced';
+        const nextMode = p.id==='quiet'?'auto':p.id;
         settings.poseMode = nextMode;
         temporaryPose = null;
         chrome.storage.local.set({ settings });
@@ -933,7 +885,12 @@
     canvasEl.className = "waifu-canvas";
     canvasEl.title = `${settings.name || "Seraphina"} — Click to interact or drag to move`;
 
-    wrapEl.append(bubbleEl, toolbarEl, canvasEl);
+    behaviorProp=document.createElement('div');
+    behaviorProp.hidden=true;
+    behaviorProp.setAttribute('aria-hidden','true');
+    behaviorProp.style.cssText='position:absolute;bottom:3%;left:3%;width:22%;pointer-events:none;filter:drop-shadow(0 3px 3px #0003)';
+    behaviorProp.innerHTML='<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg"><path d="M50 84V30" stroke="#437b49" stroke-width="6"/><path d="M50 61Q10 62 19 33Q45 30 50 61M50 47Q82 49 84 18Q57 17 50 47" fill="#71ad65" stroke="#437b49" stroke-width="3"/><path d="M20 81H80L72 121H28Z" fill="#b76c52" stroke="#744839" stroke-width="3"/><rect x="16" y="76" width="68" height="13" rx="4" fill="#d48768"/><path d="M6 15l3 7m4-15 2 7M89 60l3 8" stroke="#7bbfe3" stroke-width="4" stroke-linecap="round"/></svg>';
+    wrapEl.append(bubbleEl, toolbarEl, canvasEl,behaviorProp);
     const loadingImage = document.createElement("img");
     loadingImage.alt = "";
     loadingImage.src = chrome.runtime.getURL(`assets/previews/${settings.activeModel === "gothic_red" ? "crimson" : "seraphina"}-dashboard.png`);
@@ -1129,6 +1086,7 @@
       const totalMoved = Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY);
       const wasDrag = pointerMoved || totalMoved >= 8;
       if (wasDrag) {
+        brain.elapsed=0;brain.stage=0;brain.lastTouch=performance.now();
         if (dragMode === "move") {
           settings.position = clampPosition(settings.position?.right ?? startRight, settings.position?.bottom ?? startBottom, settings.sizePx, true);
           applyPosition();
@@ -1184,6 +1142,7 @@
   }
 
   function handleKeyActivity() {
+    lastPageActivity=Date.now();
     if (settings.smartRoles === false || !hostEl) return;
     lastTypeAt = Date.now();
     if (isStrolling) stopStroll();
@@ -1232,6 +1191,8 @@
   }
 
   function handleCursorLook(e) {
+    lastPageActivity=Date.now();
+    if(performance.now()<brain.ignoreUntil)return;
     if (!animator || !settings.cursorFollow || !wrapEl || document.hidden) return;
     const sizeH = displaySize();
     const sizeW = Math.round(sizeH * (460 / 600));
@@ -1257,6 +1218,8 @@
   }
 
   function handleVisibility() {
+    brain.last=performance.now();
+    lastPageActivity=Date.now();
     if (document.hidden) {
       hiddenAt = Date.now();
       stopStroll();
@@ -1283,44 +1246,6 @@
     handleClickReaction();
   }
 
-  function applyPoseModeFromTap(nextMode) {
-    stopStroll();
-    temporaryPose = null;
-    if (temporaryPoseTimer) {
-      clearTimeout(temporaryPoseTimer);
-      temporaryPoseTimer = null;
-    }
-
-    settings.poseMode = nextMode;
-    chrome.storage.local.set({ settings });
-
-    if (nextMode === "auto") {
-      syncPose();
-      updateToolbarActiveState("auto");
-      scheduleAutoBehavior(true);
-      showBubble("Auto mode on~ I'll move & chat on my own!", 3600);
-      scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-      return;
-    }
-
-    if (autoBehaviorTimer) {
-      clearTimeout(autoBehaviorTimer);
-      autoBehaviorTimer = null;
-    }
-    if (motionChatterTimer) {
-      clearTimeout(motionChatterTimer);
-      motionChatterTimer = null;
-    }
-    animator.setPose(nextMode, true);
-    updateToolbarActiveState(nextMode);
-    const q = pickMotionQuote(nextMode);
-    if (q) {
-      showBubble(q, 4800);
-    } else {
-      scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
-    }
-  }
-
   function handleClickReaction() {
     if (!animator) return;
     if (timer && timer.status === "running") {
@@ -1331,11 +1256,11 @@
       return;
     }
 
-    // Tapping permanently steps through wave -> think -> celebrate -> tea -> back to auto
-    const curMode = settings.poseMode || "auto";
-    const curIdx = TAP_POSE_SEQUENCE.indexOf(curMode);
-    const nextMode = TAP_POSE_SEQUENCE[(curIdx + 1) % TAP_POSE_SEQUENCE.length];
-    applyPoseModeFromTap(nextMode);
+    const reaction=brain.touch(performance.now(),settings.activeModel==='gothic_red');
+    if(reaction){
+      performBehavior(reaction);
+    }
+    return;
   }
 
   function applyVisualSettings() {
@@ -1379,6 +1304,8 @@
   }
 
   function unmountUI() {
+    clearTimeout(behaviorPropTimer); behaviorProp=null;
+    brain.last=0;
     clearTimeout(bubbleTimer);
     clearTimeout(temporaryPoseTimer);
     bubbleTimer = null;
@@ -1458,6 +1385,7 @@
       const nextVer = Number(settings.modelVersion) || 1;
       const nextSrc = settings.modelSource || "auto";
       const nextModel = settings.activeModel || "seraphina";
+      if(nextModel!==activeCompanionModel){brain.stage=0;brain.elapsed=0;brain.last=0;animator.behavior=null;}
       if (wantMode === "3d" && (nextVer !== activeModelVersion || nextSrc !== activeModelSource || nextModel !== activeCompanionModel)) {
         activeModelVersion = nextVer;
         activeModelSource = nextSrc;
@@ -1502,6 +1430,7 @@
         ? raw.tabAlerts.customDomains
         : (defAlerts.customDomains || [])
     };
+    if(!['auto','idle'].includes(merged.poseMode))merged.poseMode='auto';
     merged.motionQuotes = normalizeMotionQuotes(raw?.motionQuotes, raw?.customQuotes);
     delete merged.customQuotes;
     return merged;
@@ -1510,7 +1439,7 @@
   function formatTabAlertBubble(msg) {
     const list = Array.isArray(msg.pendingList) ? msg.pendingList : [];
     const latest = msg.latest || list[0];
-    if (!latest) return "A background tab is ready!";
+    if (!latest) return settings.activeModel==='gothic_red'?"Hey! A background tab is ready!":"Your background tab is ready when you are.";
 
     const tabCount = Number(msg.tabCount) || list.length || 1;
     const totalCount = Number(msg.totalCount) || tabCount;
@@ -1535,9 +1464,11 @@
     } else if (msg.type === "WAIFU_TIMER_EVENT") {
       if (msg.timer) timer = msg.timer;
       if (hostEl) {
+        animator.behavior=null;
         if (msg.event === "focus_complete") {
           const streak = Number(msg.stats?.focusSessionsToday) || 0;
-          const baseQuote = pickQuote("celebrate");
+          brain.elapsed=0;
+          const baseQuote = settings.activeModel==='gothic_red'?"You did it! That deserves a little dance!":"Nicely done. You've earned a proper break.";
           const fullQuote = streak > 0 ? `${baseQuote} (Session #${streak} today~)` : baseQuote;
           walkAndPerform("celebrate", 6000, fullQuote);
         } else if (msg.event === "break_complete") {
@@ -1547,7 +1478,9 @@
     } else if (msg.type === "WAIFU_TAB_ALERT_EVENT" && msg.event === "triggered" && hostEl) {
       if (settings.tabAlerts?.enabled !== false && !isFullscreenBlocked()) {
         const alertPose = settings.tabAlerts?.pose || "celebrate";
-        const bubbleText = formatTabAlertBubble(msg);
+        const info=formatTabAlertBubble(msg);
+        const bubbleText = settings.activeModel==='gothic_red'?`Hey, look! ${info}`:`A little update for you: ${info}`;
+        animator.behavior=null;
         if (isUserTypingNow()) {
           triggerTemporaryPose(alertPose, 5500, bubbleText);
         } else {
@@ -1560,6 +1493,8 @@
       }
     } else if (msg.type === "WAIFU_PULSE_POSE" && hostEl) {
       triggerTemporaryPose(msg.pose || "wave", 3600, msg.quote || pickQuote(msg.pose === "wave" ? "greeting" : msg.pose));
+    } else if (msg.type === "WAIFU_BEHAVIOR_CONTROL" && hostEl) {
+      if(msg.action==='interact')handleClickReaction();
     } else if (msg.type === "WAIFU_AI_ACTION" && hostEl && animator) {
       if (typeof msg.expression === "string" && typeof animator.setExpression === "function") {
         animator.setExpression(msg.expression, msg.expressionWeight ?? 0.9);
