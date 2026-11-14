@@ -35,6 +35,8 @@ Microphone audio goes directly from the extension to Gemini over a constrained W
 
 This extension does not save voice recordings or transcripts. Google's processing/retention terms still apply. Context compression bounds retained audio context; it does not make the API free or establish a hard dollar budget. Before public release, measure actual billed usage and set commercial minute limits/budget controls; the current session-start quota is only an abuse guard.
 
+Voice personalities are selected on the server for each new call. Seraphina is around 25: mature, carefree and confident, teasing like a close friend with understated hints of attraction. Crimson is 24: impulsive, attention-seeking and dramatically affectionate, with brief playful jealousy and mock indignation. Both respect boundaries and real relationships; Crimson accepts a busy user or an ended call without guilt or pressure. Verify their delivery with real voice calls: a compliment, mention of another woman, a request to stop flirting, and "I need to go" should produce distinct but respectful responses. Existing calls keep their original persona until restarted.
+
 Sessions and PKCE verifiers live in extension-origin IndexedDB, not page-accessible storage. Cloud operations accept requests only from the extension popup. Only the public project URL and publishable key are shipped. Auth dependencies are bundled locally for Manifest V3; there is no remote JavaScript loading. The small auth bundle is registered at worker startup because Chrome disallows loading previously unregistered worker scripts after installation.
 
 ## Development and validation
