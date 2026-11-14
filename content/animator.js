@@ -412,6 +412,7 @@
     async setModelKey(modelKey) {
       const cleanKey = modelKey === "gothic_red" ? "gothic_red" : "seraphina";
       if (this.modelKey === cleanKey) return;
+      this.walkPlayer?.release();
       this.dancePlayer?.release();
       this.behavior=null;
       this.modelKey = cleanKey;
@@ -473,6 +474,7 @@
     }
 
     setWalking(active, dirX = 0, speedPx = this.displayHeight * 0.42) {
+      if(active&&root.WAIFU_DANCE?.WalkCycle){this.walkPlayer??=new root.WAIFU_DANCE.WalkCycle();this.walkPlayer.prepare(this.modelKey).catch(()=>{});}
       this.targetWalkSpeed = active ? Math.max(0, speedPx) : 0;
       const next = active ? 1 : 0;
       if (next === 1 && this.walkTarget === 0) {
@@ -533,7 +535,7 @@
           this.rafId = null;
           return;
         }
-        if (now - this.lastFrameTime >= 1000 / (this.behavior?.id === "dance" ? 60 : 30) - 0.5) this.renderFrame(now);
+        if (now - this.lastFrameTime >= 1000 / (this.behavior?.id === "dance" || this.walkAmount>.01 ? 60 : 30) - 0.5) this.renderFrame(now);
         this.rafId = requestAnimationFrame(tick);
       };
       this.rafId = requestAnimationFrame(tick);
@@ -547,6 +549,7 @@
     }
 
     destroy() {
+      this.walkPlayer?.release();
       this.dancePlayer?.release();
       this.destroyed = true;
       this.stopLoop();
@@ -681,7 +684,7 @@
         // Continuous stride phase integration prevents pops when starting/stopping a stroll
         if (this.walkAmount > 0.01) {
           this.walkSpeed += (this.targetWalkSpeed - this.walkSpeed) * (1 - Math.exp(-10 * dt));
-          const cyclesPerSecond = clamp(1.55 + this.walkSpeed / this.displayHeight * 0.75, 1.55, 2.4);
+          const cyclesPerSecond = clamp(.78 + this.walkSpeed / this.displayHeight * .5, .8, 1.35);
           this.walkPhase += dt * Math.PI * 2 * cyclesPerSecond;
         } else {
           this.walkPhase = 0;
@@ -803,7 +806,9 @@
       ctx.translate(pivotX + translateX + regX, pivotY + translateY + regY);
       ctx.rotate(rotRad);
       ctx.scale(frame.flipX ? -scaleX : scaleX, scaleY);
-      if (frame.key === "wave" && this.microMotion && (this.modelKey === "gothic_red" || this.modelKey === "crimson")) {
+      if(this.walkAmount>.12&&this.walkPlayer?.draw(ctx,this.walkPhase,-drawW*.5,-drawH,drawW,drawH)){
+        // Dense precomputed optical-flow cycle; no four-frame popping.
+      } else if (frame.key === "wave" && this.microMotion && (this.modelKey === "gothic_red" || this.modelKey === "crimson")) {
         this.drawCrimsonWave(ctx, activeImg, drawW, drawH, now);
       } else {
         ctx.drawImage(activeImg, -drawW * 0.5, -drawH, drawW, drawH);

@@ -820,13 +820,13 @@
       const upper = lengths[0], lower = lengths[1], length = upper + lower;
       const stride = clamp(strideWorld, 0, length * 0.38);
       const cycle = ((phase / (Math.PI * 2)) % 1 + 1) % 1;
-      const stance = cycle < 0.5;
-      const p = stance ? cycle * 2 : (cycle - 0.5) * 2;
+      const stance = cycle < .56;
+      const p = stance ? cycle/.56 : (cycle-.56)/.44;
       const swingEase = p * p * (3 - 2 * p);
       const z = (stance ? 0.5 - p : -0.5 + swingEase) * stride;
       // Lower the hips by the same amount as leg flexion so stance feet stay on the floor.
       const hipHeight = Math.sqrt(length * length - stride * stride * 0.25) * 0.995;
-      const lift = stance ? 0 : Math.sin(p * Math.PI) ** 2 * length * 0.075;
+      const lift = stance ? 0 : Math.sin(p * Math.PI) ** 2 * length * .045;
       const y = -hipHeight + lift;
       const distance = clamp(Math.hypot(y, z), Math.abs(upper - lower) + 0.0001, length * 0.999);
       const knee = Math.PI - Math.acos(clamp((upper * upper + lower * lower - distance * distance) / (2 * upper * lower), -1, 1));
@@ -834,7 +834,8 @@
       const out = this._walkLegs[side];
       out[0] = thigh * weight;
       out[1] = knee * weight;
-      out[2] = (-thigh - knee) * weight;
+      const footRoll=stance?(p<.2?.08*(1-p/.2):p>.8?-.10*((p-.8)/.2):0):.07*Math.sin(p*Math.PI);
+      out[2] = (-thigh - knee + footRoll) * weight;
       out[3] = (length - hipHeight) * weight;
       return out;
     }
@@ -955,14 +956,14 @@
       if (this.walkAmount > 0.02) {
         const speedInBodyHeights = this.walkSpeed / this.displayHeight;
         const cadenceForStride = speedInBodyHeights * this.modelHeight / (0.90 * Math.max(0.1, this.legLength) * 0.76);
-        this.walkCadence = clamp(Math.max(0.85 + speedInBodyHeights * 0.65, cadenceForStride), 0.85, 2.2);
+        this.walkCadence = clamp(Math.max(.72 + speedInBodyHeights * .45, cadenceForStride), .72, 1.6);
         this.walkPhase += dt * this.walkCadence * Math.PI * 2;
       }
 
       // Seductive 3/4 runway catwalk angle (~45 deg) when strolling, plus subtle front-facing cursor sway when idle
       const frontFacing = Math.max(0, Math.cos(this.orbitYaw));
       const targetYaw =
-        (this.walkAmount > 0.05 ? this.walkDir * 1.48 * this.walkAmount : 0) +
+        (this.walkAmount > 0.05 ? this.walkDir * 1.08 * this.walkAmount : 0) +
         (this.depth25D && this.microMotion ? this.lookX * 0.16 * frontFacing : 0) -
         clamp(this.smoothDragLag * 0.015, -0.35, 0.35);
       this.walkYaw = damp(this.walkYaw, targetYaw, 10, dt);
@@ -1000,6 +1001,7 @@
         }
       }
 
+      if(this._danceRootBase){this.pivotGroup.position.copy(this._danceRootBase);}
       // Accumulate canonical anatomical world Euler targets across active pose + locomotion
       const wIdle = this.poseWeights.idle;
       const wWave = this.poseWeights.wave * (1 - this.walkAmount);
@@ -1136,8 +1138,8 @@
         const stride = 0.30 * wWalk;
         lThighRx = -swing * stride;
         rThighRx = swing * stride;
-        lThighRz = -0.025;
-        rThighRz = 0.025;
+        lThighRz = -.018*wWalk;
+        rThighRz = .018*wWalk;
         lKneeRx = (0.035 + leftLift * leftLift * 0.48) * wWalk;
         rKneeRx = (0.035 + rightLift * rightLift * 0.48) * wWalk;
         lFootRx = -lThighRx - lKneeRx + leftLift * 0.13 * wWalk;
@@ -1148,16 +1150,16 @@
         if (left) { lThighRx = left[0]; lKneeRx = left[1]; lFootRx = left[2]; }
         if (right) { rThighRx = right[0]; rKneeRx = right[1]; rFootRx = right[2]; }
         if (left && right) hipsPy -= (left[3] + right[3]) * 0.5;
-        hipsRz += swing * 0.012 * wWalk;
-        hipsRy += -swing * 0.045 * wWalk;
+        hipsRz += swing * .032 * wWalk;
+        hipsRy += -swing * .06 * wWalk;
         hipsPy += (Math.cos(phase * 2) - 1) * 0.001 * this.legLength * wWalk;
         spineRy += swing * 0.025 * wWalk;
         spineRz -= swing * 0.018 * wWalk;
         chestRy += swing * 0.02 * wWalk;
         headRy *= 1 - wWalk * 0.8;
         headRz *= 1 - wWalk;
-        lArmRx = lArmRx * standWeight + swing * 0.17 * wWalk;
-        rArmRx = rArmRx * standWeight - swing * 0.17 * wWalk;
+        lArmRx = lArmRx * standWeight + swing * .12 * wWalk;
+        rArmRx = rArmRx * standWeight - swing * .12 * wWalk;
         lForeRy = -0.16;
         rForeRy = 0.16;
       }
@@ -1170,7 +1172,11 @@
           lArmRz+=Math.max(0,motion.arm)*.6;rArmRz-=Math.max(0,motion.arm)*.6;
           lForeRy-=Math.max(0,motion.arm)*.6;rForeRy+=Math.max(0,motion.arm)*.6;
           if(motion.arm<0){lArmRx-=motion.weight*.22;rArmRx-=motion.weight*.22;lForeRz+=motion.weight*1.1;rForeRz-=motion.weight*1.1;}
-          if(this.behavior?.id==='garden'||this.behavior?.id==='showPlant'){rArmRx-=motion.weight*.5;rForeRz-=motion.weight*.9;headRx+=motion.weight*.12;}
+          if(this.behavior?.id==='garden'||this.behavior?.id==='showPlant'){
+            const work=motion.bend/.38;
+            rArmRx-=work*.45;rForeRz-=work*.65;headRx+=work*.35;chestRx+=work*.08;
+            lArmRz-=Math.max(0,motion.arm)*.6;
+          }
           if(this.behavior?.id==='dance'){lKneeRx+=Math.max(0,motion.roll)*.9;rKneeRx+=Math.max(0,-motion.roll)*.9;}
         }
       }

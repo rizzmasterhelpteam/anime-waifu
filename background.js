@@ -33,7 +33,7 @@ async function ensureCompanion(tabId, documentId, mode, retry = false) {
     const state = probe.result || {};
     const files = [];
     if (!state.shared) files.push("shared/defaults.js");
-    if (!state.sprites) files.push("shared/dance-player.js", "content/animator.js");
+    if (!state.sprites) files.push("shared/dance-player.js", "shared/garden-sequence.js", "content/animator.js");
     if (mode === "3d" && !state.vrm) files.push("vendor/vrm-bundle.js", "content/secondary-motion.js", "content/vrm-animator.js");
     if (!state.mounted) files.push("content/companion.js");
     if (files.length) await chrome.scripting.executeScript({ target, files, injectImmediately: true });

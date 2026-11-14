@@ -431,7 +431,11 @@
     const weight=Math.min(1,t/.6,remaining/.6), lively=behavior.crimson?1.25:0.8;
     const m={...zero,weight};
     if(behavior.id==='dance'){m.x=Math.sin(t*3.8)*.025*lively;m.y=-Math.pow(Math.sin(t*3.8),2)*.012;m.roll=Math.sin(t*3.8)*.065*lively;m.arm=(.5+.5*Math.sin(t*3.8))*.65;m.turn=Math.sin(t*1.9)*.18;}
-    if(behavior.id==='garden'||behavior.id==='showPlant'){m.bend=.14+Math.sin(t*1.8)*.035;m.roll=Math.sin(t*1.8)*.014;m.arm=.35+Math.sin(t*1.8)*.10;}
+    if(behavior.id==='garden'||behavior.id==='showPlant'){
+      const work=t<6?Math.min(1,t/.8):Math.min(1,Math.max(0,1-(t-10)/2));
+      m.bend=.38*work;m.roll=-.045*work;m.arm=.45*work;
+      if(t>12){m.turn=Math.sin((t-12)*1.8)*.07;m.roll=.025;}
+    }
     if(behavior.id==='pout'||behavior.id==='sidestep'){m.turn=(behavior.crimson?.6:.25);m.roll=behavior.crimson?-.035:.025;m.arm=-.45;}
     if(behavior.id==='rest'){m.bend=.045;m.roll=Math.sin(t*.8)*.015;}
     for(const key of ['x','y','roll','turn','bend','arm'])m[key]*=weight;

@@ -1,6 +1,6 @@
 {
   "name": "anime-wifu",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Animated browser companions with Supabase accounts, settings sync and Gemini 3.8 Live voice.",
   "main": "background.js",
   "directories": {
@@ -11,7 +11,8 @@
     "test:cloud": "node tests/cloud-backend-review.cjs",
     "test:voice": "node tests/voice-contract.cjs",
     "test:behavior": "node tests/behavior-brain.cjs && node tests/behavior-controls.cjs && node tests/automatic-startup.cjs",
-    "test:dance": "node tests/dance-playback.cjs"
+    "test:dance": "node tests/dance-playback.cjs",
+    "test:motion": "node tests/motion-quality.cjs"
   },
   "repository": {
     "type": "git",

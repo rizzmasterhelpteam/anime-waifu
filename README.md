@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.8.0**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.0**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -18,9 +18,11 @@ Walking wanders across the whole available browser viewport, including diagonal 
 
 **Calm** keeps the companion standing idle with natural blinking/breathing. It does not walk, dance, garden or perform notification gestures; notification text can still appear. Tapping in Calm acknowledges the user without starting movement. Playful pauses during focus/break timers, hidden tabs, dragging, fullscreen blocking and disabled animation. It does not stop merely because the user has been inactive for five minutes. Automatic activity bubbles are rate-limited to avoid chatter after every walk or action.
 
-Only Calm and Playful appear in the dashboard and character toolbar. Mode selections are synchronized. Dance uses transparent video-derived 24 FPS frames in 2D and authored skeletal GLB tracks in 3D; gardening retains its lightweight SVG plant and procedural gesture. Brain state remains session-local. No API calls or payment changes are involved.
+Only Calm and Playful appear in the dashboard and character toolbar. Mode selections are synchronized. Dance uses transparent video-derived 24 FPS frames in 2D and authored skeletal GLB tracks in 3D; gardening uses a synchronized sequence: soil, watering, sprout, full plant, then a look and comment. The lightweight SVG pot, watering can and plant are shared across render modes, with mode-specific body gestures. The props are an overlay, including in 3D mode. Brain state remains session-local. No API calls or payment changes are involved.
 
-See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for dance sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup.
+2D walking uses a lazy-loaded, 24-frame optical-flow cycle instead of four abrupt pose changes. 3D walking uses planted stance/swing IK, restrained heel-to-toe roll, a narrow catwalk stance and counterbalanced hips/shoulders. The rebuilt 3D dance includes alternating steps, foot lifts and pelvis travel as well as arm gestures.
+
+See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for dance sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup; `npm run test:motion` checks garden staging, bounded bending and walk contact/clearance.
 
 ## Install
 1. Clone or download this repository.
@@ -44,7 +46,7 @@ The runtime is plain JavaScript and requires no build step.
 | `tests/` | Browser and runtime regression checks |
 
 ## Verification
-Install Playwright for browser checks. Asset-generation scripts may also require Sharp, NumPy and Pillow; these are not extension runtime dependencies.
+Install Playwright for browser checks. Asset-generation scripts may also require Sharp, NumPy, Pillow and OpenCV; these are not extension runtime dependencies.
 
 Start the local test server:
 ```powershell

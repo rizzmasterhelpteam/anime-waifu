@@ -24,6 +24,7 @@
   let activityLoading=false;
   let lastBehaviorBubble=-Infinity;
   let behaviorProp = null;
+  let gardenSequence=null;
   let behaviorPropTimer = null;
   const HOST_ID = "seraphina-waifu-companion-host";
 
@@ -180,7 +181,7 @@
     if (!animator) return;
     if(timer?.status==='running' || (settings.interactionFrequency==='quiet' && !animator.behavior?.manual)){
       if(animator.behavior?.id==='dance')cancelDance();
-      animator.behavior=null;
+      animator.behavior=null;gardenSequence?.stop();
       if(behaviorProp)behaviorProp.hidden=true;
       if(temporaryPoseTimer)clearTimeout(temporaryPoseTimer);
       temporaryPose=null;
@@ -519,19 +520,23 @@
       stopStroll();
     }
     const crimson=settings.activeModel==='gothic_red';
-    const duration={garden:20000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
+    const duration={garden:16000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
     const actualDuration=id==='dance'?danceDuration*1000:duration;
     const pose=id==='greet'?'wave':id==='dance'?'idle':id==='rest'?'tea':id==='pout'?'think':'idle';
     const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
     const canChat=manual||(!isUserTypingNow()&&performance.now()-lastBehaviorBubble>30000);
-    const quote=lines&&canChat?lines[Math.floor(Math.random()*lines.length)]:null;
+    const quote=lines&&canChat&&id!=='garden'?lines[Math.floor(Math.random()*lines.length)]:null;
     if(quote)lastBehaviorBubble=performance.now();
     triggerTemporaryPose(pose,actualDuration,quote);
     animator.behavior={id,start:performance.now(),until:performance.now()+actualDuration,crimson,manual};
     if(behaviorPropTimer)clearTimeout(behaviorPropTimer);
-    if(behaviorProp){
-      behaviorProp.hidden=!(id==='garden'||id==='showPlant');
-      behaviorProp.animate?.([{transform:'translateY(3px) rotate(-2deg)'},{transform:'translateY(0) rotate(2deg)'}],{duration:1800,iterations:Math.ceil(duration/1800),direction:'alternate',easing:'ease-in-out'});
+    gardenSequence?.stop();
+    if(id==='garden'&&gardenSequence){
+      gardenSequence.start(()=>{
+        if(instance!==animator||animator.behavior?.id!=='garden'||settings.interactionFrequency==='quiet'||document.hidden)return;
+        animator.setPointerLook?.(0,0,0,0);
+        showBubble(crimson?"Look! I grew this! Pretty impressive, right?":"A little care goes a long way. Look what we grew.",3500);
+      });
     }
     behaviorPropTimer=setTimeout(()=>{
       if(behaviorProp)behaviorProp.hidden=true;
@@ -909,8 +914,8 @@
     behaviorProp=document.createElement('div');
     behaviorProp.hidden=true;
     behaviorProp.setAttribute('aria-hidden','true');
-    behaviorProp.style.cssText='position:absolute;bottom:3%;left:3%;width:22%;pointer-events:none;filter:drop-shadow(0 3px 3px #0003)';
-    behaviorProp.innerHTML='<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg"><path d="M50 84V30" stroke="#437b49" stroke-width="6"/><path d="M50 61Q10 62 19 33Q45 30 50 61M50 47Q82 49 84 18Q57 17 50 47" fill="#71ad65" stroke="#437b49" stroke-width="3"/><path d="M20 81H80L72 121H28Z" fill="#b76c52" stroke="#744839" stroke-width="3"/><rect x="16" y="76" width="68" height="13" rx="4" fill="#d48768"/><path d="M6 15l3 7m4-15 2 7M89 60l3 8" stroke="#7bbfe3" stroke-width="4" stroke-linecap="round"/></svg>';
+    behaviorProp.style.cssText='position:absolute;bottom:1%;left:-8%;width:48%;pointer-events:none;filter:drop-shadow(0 3px 3px #0003)';
+    if(window.WAIFU_GARDEN)gardenSequence=new window.WAIFU_GARDEN.GardenSequence(behaviorProp);
     wrapEl.append(bubbleEl, toolbarEl, canvasEl,behaviorProp);
     const loadingImage = document.createElement("img");
     loadingImage.alt = "";
@@ -1247,6 +1252,7 @@
       clearTimeout(temporaryPoseTimer);temporaryPoseTimer=null;
     }
     animator?.dancePlayer?.release();
+    gardenSequence?.stop();
   }
 
   function handleVisibility() {
@@ -1341,7 +1347,7 @@
 
   function unmountUI() {
     behaviorRequest++;
-    clearTimeout(behaviorPropTimer); behaviorProp=null;
+    clearTimeout(behaviorPropTimer);gardenSequence?.stop();gardenSequence=null; behaviorProp=null;
     brain.last=0;
     clearTimeout(bubbleTimer);
     clearTimeout(temporaryPoseTimer);
@@ -1505,7 +1511,7 @@
       behaviorRequest++;animator.dancePlayer?.release();
       settings.poseMode='auto';settings.interactionFrequency='quiet';
       animator.behavior=null;temporaryPose=null;clearTimeout(temporaryPoseTimer);
-      if(behaviorProp)behaviorProp.hidden=true;
+      if(behaviorProp)behaviorProp.hidden=true;gardenSequence?.stop();
       syncPose();scheduleAutoBehavior();
     }else if(action==='auto'||action==='playful'){
       settings.poseMode='auto';settings.interactionFrequency='playful';
