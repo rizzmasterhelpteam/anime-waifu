@@ -62,6 +62,13 @@
     "SkirtBack"
   ];
 
+  const FINGER_BONE_KEYS=[];
+  for(const side of ['left','right']){
+    for(const finger of ['Index','Middle','Ring','Little'])for(const joint of ['Proximal','Intermediate','Distal'])FINGER_BONE_KEYS.push(side+finger+joint);
+    for(const joint of ['Metacarpal','Proximal','Distal'])FINGER_BONE_KEYS.push(side+'Thumb'+joint);
+  }
+  HUMANOID_BONE_KEYS.push(...FINGER_BONE_KEYS);
+
   class WaifuVrmAnimator {
     constructor(canvas, options = {}) {
       this.canvas = canvas;
@@ -1247,6 +1254,7 @@
       this._setBoneWorldEuler("rightFoot", rFootRx, 0, 0);
 
       this._solveRightArm(wThink, wTea);
+      for(const finger of FINGER_BONE_KEYS)this._setBoneWorldEuler(finger,0,0,0);
 
       if(this.behavior?.id==='dance' && now<this.behavior.until && this.microMotion && wWalk<.1){
         this.dancePlayer?.apply(this,this.behavior,now);
@@ -1307,7 +1315,7 @@
       this._applyExpression("blink", Math.max(blinkVal, softGaze));
       const happyVal = Math.max(
         wIdle * (0.06 + this.hoverBoost * 0.07) + wWave * 0.38 + wCheer * 0.85,
-        this.behavior?.id==='dance' && now<this.behavior.until ? .55 : 0,
+        this.behavior?.id==='dance' && now<this.behavior.until ? .2 : 0,
         this.apiExpression === "happy" ? this.apiExpressionWeight : 0
       );
       this._applyExpression("happy", happyVal);
@@ -1319,6 +1327,9 @@
         this._applyExpression(this.apiExpression, this.apiExpressionWeight);
       }
       this._applyExpression("aa", this.mouthOpenWeight);
+      // Reset asymmetric blink channels each frame so cancelling a wink is safe.
+      this._applyExpression('blinkLeft',0);this._applyExpression('blinkRight',0);
+      if(this.behavior?.id==='dance' && now<this.behavior.until)this.dancePlayer?.applyFace(this,this.behavior,now);
 
       this.renderer.render(this.scene, this.camera);
     }

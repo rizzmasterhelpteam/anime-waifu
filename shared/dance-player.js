@@ -45,12 +45,13 @@
   async prepare(key){
    key=canonical(key);if(this.model===key&&this.scene)return this.duration;
    this.release();const generation=this.generation,V=root.WAIFU_VRM_VENDOR,T=V.THREE;
-   const buffer=await resource('assets/animations/'+key+'/dance-v2.glb');
+   const buffer=await resource('assets/animations/'+key+'/dance-reference.glb');
    const gltf=await new Promise((resolve,reject)=>new V.GLTFLoader().parse(buffer,'',resolve,reject));
    if(generation!==this.generation)throw Error('Dance cancelled');
    if(!gltf.animations[0])throw Error('Missing dance tracks');
    this.model=key;this.scene=gltf.scene;this.mixer=new T.AnimationMixer(this.scene);this.action=this.mixer.clipAction(gltf.animations[0]);this.action.setLoop(T.LoopOnce,1);this.action.clampWhenFinished=true;this.action.play();this.duration=gltf.animations[0].duration;
    this.euler=new T.Euler();this.beforeQ=new T.Quaternion();this.targetQ=new T.Quaternion();this.targets=new Map();this.scene.traverse(n=>{if(n.name)this.targets.set(n.name,n);});
+   this.faceCues=gltf.parser?.json?.extras?.faceCues||null;
    return this.duration;
   }
   apply(animator,behavior,now){
@@ -71,7 +72,12 @@
     record.node.quaternion.slerpQuaternions(this.beforeQ,this.targetQ,blend);
    }
   }
-  release(){this.generation++;this.mixer?.stopAllAction();if(this.scene)this.mixer?.uncacheRoot(this.scene);this.scene=null;this.model=null;this.targets?.clear();}
+  applyFace(animator,behavior,now){
+   if(!this.faceCues?.length)return;
+   const elapsed=Math.max(0,(now-behavior.start)/1000),frame=Math.min(this.faceCues.length-1,elapsed*24),a=Math.floor(frame),b=Math.min(this.faceCues.length-1,a+1),u=frame-a,blend=weight(elapsed,this.duration);
+   for(let eye=0;eye<2;eye++)animator._applyExpression(eye?'blinkRight':'blinkLeft',(this.faceCues[a][eye]*(1-u)+this.faceCues[b][eye]*u)*blend);
+  }
+  release(){this.generation++;this.mixer?.stopAllAction();if(this.scene)this.mixer?.uncacheRoot(this.scene);this.scene=null;this.model=null;this.faceCues=null;this.targets?.clear();}
  }
  root.WAIFU_DANCE={SpriteDance,SkeletonDance,WalkCycle,weight};
 })(globalThis);
