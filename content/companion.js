@@ -755,7 +755,7 @@
       openToolbar(8000);
     }, { passive: true });
 
-    const quickPoses = [{id:'calm',label:'Calm'},{id:'playful',label:'Playful'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
+    const quickPoses = [{id:'calm',label:'Calm'},{id:'playful',label:'Playful'}];
     for (const p of quickPoses) {
       const b = document.createElement("button");
       b.type = "button";
@@ -773,7 +773,6 @@
         e.stopPropagation();
         openToolbar(750);
         stopStroll();
-        if(['interact','dance','garden','walk'].includes(p.id)){requestBehavior(p.id);return;}
         requestBehavior(p.id);
         chrome.storage.local.set({settings});
       });

@@ -774,30 +774,13 @@
       const mode=btn.dataset.mode;
       const feedback=document.getElementById('behavior-feedback');
       saveSettings({poseMode:'auto',interactionFrequency:mode==='calm'?'quiet':'playful',...(mode==='calm'?{}:{microMotion:true,autoStroll:true})});
-      feedback.textContent=mode==='calm'?'Calm: peaceful idle; tap her or choose an activity anytime.':'Playful: activities, dancing and attention reactions.';
+      feedback.textContent=mode==='calm'?'Calm: peaceful idle. Tap her to interact.':'Playful: automatically walks, dances, gardens and reacts to you.';
       try{
         const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
         const r=tab?.id&&await chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:mode});
         if(!r?.ok)throw Error();
       }catch{feedback.textContent+=' Refresh your website to connect the updated companion.';}
       if(previewAnimator){previewAnimator.behavior=null;previewAnimator.setPose(mode==='calm'?'idle':'wave',true);}
-    }));
-
-    document.querySelectorAll('[data-behavior]').forEach(button=>button.addEventListener('click',async()=>{
-      const feedback=document.getElementById('behavior-feedback');
-      button.disabled=true;feedback.textContent='Starting activity…';
-      try{
-        const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
-        if(!tab?.id || !/^https?:/.test(tab.url||''))throw Error('Open a regular website first. Browser settings pages cannot show the companion.');
-        const response=await chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:button.dataset.behavior});
-        if(!response?.ok)throw Error(response?.error||'Reload the extension and refresh this page to load the updated controls.');
-        feedback.textContent=button.textContent+' started on your page.';
-        if(previewAnimator){
-          previewAnimator.setMicroMotion(true);previewAnimator.setPose(button.dataset.behavior==='dance'?'celebrate':button.dataset.behavior==='interact'?'wave':'idle',true);
-          previewAnimator.behavior={id:button.dataset.behavior,start:performance.now(),until:performance.now()+11000,crimson:settings.activeModel==='gothic_red',manual:true};
-        }
-      }catch(e){feedback.textContent=e.message?.includes('Receiving end')?'Refresh this website to connect the updated companion.':e.message||'Could not start activity';}
-      finally{button.disabled=false;}
     }));
 
     document.querySelectorAll(".size-preset").forEach(button => {

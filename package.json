@@ -1,6 +1,6 @@
 {
   "name": "anime-wifu",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Animated browser companions with Supabase accounts, settings sync and Gemini 3.8 Live voice.",
   "main": "background.js",
   "directories": {
