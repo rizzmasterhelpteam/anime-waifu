@@ -591,6 +591,11 @@
 
       // 3) Crisp 2-frame same-arm animated waving (inward <-> outward)
       if (this.currentPose === "wave" && this.microMotion) {
+        // Crimson's alternate drawing changes her head/torso, not just the hand.
+        // Keep one registered drawing and articulate its raised arm at render time.
+        if (this.modelKey === "gothic_red" || this.modelKey === "crimson") {
+          return { key: "wave", offsetX: 0, offsetY: 0, flipX: false, isSipping: false };
+        }
         const waveBeat = Math.floor((now - this.poseEnteredAt) / 260) % 2;
         if (waveBeat === 1 && this.sprites.has("wave_alt")) {
           return { key: "wave_alt", offsetX: 0, offsetY: 0, flipX: false, isSipping: false };
@@ -683,8 +688,9 @@
           switch (this.currentPose) {
             case "wave": {
               const waveArc = 0.5 - 0.5 * Math.cos(t * 3.8);
-              targetBodyRot += Math.sin(t * 3.8) * 0.02 + Math.sin(t * 1.9) * 0.007;
-              targetBodyY -= waveArc * (h * 0.008);
+              const bodyWeight = this.modelKey === "gothic_red" || this.modelKey === "crimson" ? 0.35 : 1;
+              targetBodyRot += (Math.sin(t * 3.8) * 0.02 + Math.sin(t * 1.9) * 0.007) * bodyWeight;
+              targetBodyY -= waveArc * (h * 0.008) * bodyWeight;
               break;
             }
             case "celebrate": {
@@ -773,7 +779,11 @@
       ctx.translate(pivotX + translateX + regX, pivotY + translateY + regY);
       ctx.rotate(rotRad);
       ctx.scale(frame.flipX ? -scaleX : scaleX, scaleY);
-      ctx.drawImage(activeImg, -drawW * 0.5, -drawH, drawW, drawH);
+      if (frame.key === "wave" && this.microMotion && (this.modelKey === "gothic_red" || this.modelKey === "crimson")) {
+        this.drawCrimsonWave(ctx, activeImg, drawW, drawH, now);
+      } else {
+        ctx.drawImage(activeImg, -drawW * 0.5, -drawH, drawW, drawH);
+      }
 
       // Expressive 60fps eyeball gaze tracking inside exact pixel-clipped eye sockets
       if (this.modelKey === "seraphina" && frame.key === "idle" && this.microMotion && (Math.abs(this.eyeX) > 0.02 || Math.abs(this.eyeY) > 0.02)) {
@@ -806,6 +816,36 @@
         }
       }
 
+      ctx.restore();
+    }
+
+    drawCrimsonWave(ctx, image, width, height, now) {
+      // The silhouette left of the elbow is isolated from the face and hair.
+      // Two clipped draws rotate the same pixels; no full-frame swaps or fades.
+      const sx = width / 460, sy = height / 600;
+      const arm = () => {
+        ctx.moveTo(65, 245); ctx.lineTo(101, 245);
+        ctx.lineTo(111, 239); ctx.lineTo(145, 245);
+        ctx.lineTo(158, 278); ctx.lineTo(174, 301);
+        ctx.lineTo(179, 332); ctx.lineTo(166, 349);
+        ctx.lineTo(139, 341); ctx.lineTo(114, 310);
+        ctx.lineTo(65, 292); ctx.closePath();
+      };
+      ctx.save();
+      ctx.translate(-width * 0.5, -height);
+      ctx.scale(sx, sy);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, 460, 600); arm(); ctx.clip('evenodd');
+      ctx.drawImage(image, 0, 0, 460, 600);
+      ctx.restore();
+      const elapsed = Math.max(0, (now - this.poseEnteredAt) * 0.001);
+      const easeIn = Math.min(1, elapsed / 0.25);
+      const angle = Math.sin(elapsed * Math.PI * 2 * 1.5) * 0.045 * easeIn;
+      ctx.save();
+      ctx.translate(174, 325); ctx.rotate(angle); ctx.translate(-174, -325);
+      ctx.beginPath(); arm(); ctx.clip();
+      ctx.drawImage(image, 0, 0, 460, 600);
+      ctx.restore();
       ctx.restore();
     }
   }
