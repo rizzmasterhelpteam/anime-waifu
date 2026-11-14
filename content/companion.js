@@ -20,7 +20,9 @@
   const brain = new window.WAIFU_SHARED.CompanionBrain();
   let lastPageActivity = Date.now();
   let behaviorRequest=0;
-  let nextStrollAt = performance.now()+45000;
+  let nextStrollAt = performance.now()+20000;
+  let introPending=true;
+  let introAt=performance.now()+6000;
   let behaviorProp = null;
   let behaviorPropTimer = null;
   const HOST_ID = "seraphina-waifu-companion-host";
@@ -354,21 +356,23 @@
   }
 
   function startStroll() {
-    if (!animator || !wrapEl || isDragging || isHovered || document.hidden) return;
-    if (settings.poseMode !== "auto" || !settings.autoStroll || !settings.microMotion) return;
-    if (timer && timer.status === "running") return;
+    if (!animator || !wrapEl || isDragging || isHovered || document.hidden) return false;
+    if (settings.poseMode !== "auto" || !settings.autoStroll || !settings.microMotion) return false;
+    if (timer && timer.status === "running") return false;
 
     stopStroll();
 
     const startR = settings.position?.right ?? 24;
     const startB = settings.position?.bottom ?? 18;
     const delta = (Math.random() < 0.5 ? -1 : 1) * (displaySize() * (0.45 + Math.random() * 0.45));
-    const target = clampPosition(startR + delta, startB, settings.sizePx);
-    const actualDeltaR = target.right - startR;
-    if (Math.abs(actualDeltaR) < 25) return;
+    let target = clampPosition(startR + delta, startB, settings.sizePx);
+    let actualDeltaR = target.right - startR;
+    if(Math.abs(actualDeltaR)<25){target=clampPosition(startR-delta,startB,settings.sizePx);actualDeltaR=target.right-startR;}
+    if (Math.abs(actualDeltaR) < 25) return false;
 
     const durationMs = Math.max(900, Math.abs(actualDeltaR) / (displaySize() * 0.42) * 1000);
     runSmoothStroll(actualDeltaR, durationMs, { markIdle: true, respectAutoMode: true });
+    return true;
   }
 
   function getDesiredMountRoot() {
@@ -470,12 +474,15 @@
     autoBehaviorTimer = setTimeout(() => {
       autoBehaviorTimer=null;
       if(!hostEl) return;
-      const paused=document.hidden || !document.hasFocus() || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || timer?.status==='running' || !settings.microMotion;
+      const paused=document.hidden || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || timer?.status==='running' || !settings.microMotion;
       const action=brain.tick(performance.now(),paused,settings.interactionFrequency);
-      if(action) performBehavior(action);
-      else if(!paused && settings.interactionFrequency!=='quiet' && settings.autoStroll && brain.stage!==3 && !isUserTypingNow() && performance.now()>nextStrollAt){
-        nextStrollAt=performance.now()+60000+Math.random()*30000;
-        startStroll();
+      if(!paused && settings.interactionFrequency!=='quiet' && introPending && performance.now()>=introAt){
+        introPending=false;nextStrollAt=performance.now()+14000;
+        performBehavior('dance');
+      }else if(action) performBehavior(action);
+      else if(!paused && settings.interactionFrequency!=='quiet' && settings.autoStroll && brain.stage!==3 && !isUserTypingNow() && performance.now()>=nextStrollAt){
+        const moved=startStroll();
+        nextStrollAt=performance.now()+(moved?60000+Math.random()*30000:5000);
       }
       scheduleAutoBehavior();
     }, 2000);
@@ -960,6 +967,7 @@
       animator.setPaused(document.hidden || isFullscreenBlocked());
       loadingImage.remove();
       hostEl.dataset.state = "ready";
+      introPending=true;introAt=performance.now()+6000;nextStrollAt=performance.now()+20000;
       animator.start();
       scheduleAutoBehavior(true);
       scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
@@ -1483,6 +1491,7 @@
       settings.poseMode='auto';settings.interactionFrequency='playful';
       settings.microMotion=true;settings.autoStroll=true;
       brain.stage=0;brain.elapsed=0;brain.last=performance.now();nextStrollAt=performance.now()+15000;
+      introPending=true;introAt=performance.now()+6000;
       performBehavior('greet',true);scheduleAutoBehavior();
     }else if(action==='walk'){
       const right=settings.position?.right??24;
@@ -1574,4 +1583,3 @@
     syncMountState();
   });
 })();
-
