@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seraphina — Anime Waifu Companion</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="hero">
+      <div class="preview-stage">
+        <img id="preview-image" src="../assets/previews/seraphina-dashboard.png" alt="Seraphina" width="72" height="94" /><canvas id="preview-canvas" hidden></canvas>
+      </div>
+      <div class="hero-info">
+        <div class="hero-top">
+          <input id="char-name-input" class="name-input" type="text" maxlength="24" aria-label="Companion Name" />
+          <label class="switch" title="Show/Hide Companion">
+            <input id="toggle-enabled" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p id="status-subtitle" class="subtitle">Your quiet companion</p>
+        <div class="hero-actions">
+          <button id="btn-site-toggle" class="chip-btn" type="button" title="Show or hide the companion on this site">Hide here</button>
+          <button id="btn-preview" class="chip-btn ghost" type="button" aria-pressed="false">Play preview</button>
+          <button id="btn-reset-pos" class="chip-btn ghost" type="button" title="Reset the companion position">Reset</button>
+          <button id="btn-retry" class="chip-btn ghost" type="button" title="Restart the companion on this page">Retry page</button>
+        </div>
+        <p id="site-status" class="site-status" role="status"></p>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="companion" type="button">Companion</button>
+      <button class="tab" data-tab="alerts" type="button">Alerts</button>
+      <button class="tab" data-tab="timer" type="button">Timer</button>
+      <button class="tab" data-tab="quotes" type="button">Bubbles</button>
+    </nav>
+
+    <main class="panels">
+      <!-- Companion Tab -->
+      <section id="tab-companion" class="panel active">
+        <div class="section-label">Display</div>
+        <div class="engine-row">
+          <button class="engine-btn" data-render="2d" type="button">2D illustration</button>
+          <button class="engine-btn" data-render="3d" type="button">3D avatar</button>
+        </div>
+
+        <div class="section-label">Your companion</div>
+        <div class="model-cards-grid">
+          <button class="model-card active" data-model="seraphina" type="button">
+            <img class="character-thumb" src="../assets/sprites/idle.png" alt="" />
+            <span class="model-name">Seraphina</span>
+            <span class="model-tag">Silver · Royal navy</span>
+          </button>
+          <button class="model-card" data-model="gothic_red" type="button">
+            <img class="character-thumb" src="../assets/sprites/crimson/idle.png" alt="" />
+            <span class="model-name">Crimson</span>
+            <span class="model-tag">Cherry black · Burgundy</span>
+          </button>
+          <button id="btn-custom-card" class="model-card" data-model="custom" type="button">
+            <span class="model-badge-icon" aria-hidden="true">＋</span>
+            <span class="model-name" id="custom-card-title">Custom</span>
+            <span class="model-tag" id="custom-card-desc">Load .VRM</span>
+          </button>
+        </div>
+        <input id="vrm-file-input" type="file" accept=".vrm,.glb" hidden />
+        <div id="custom-active-bar" class="custom-bar" hidden>
+          <span id="custom-model-filename" class="custom-name">custom.vrm</span>
+          <button id="btn-reset-vrm" class="chip-btn ghost mini-btn" type="button">Reset</button>
+        </div>
+
+        <div class="section-label">Mood</div>
+        <div id="pose-grid" class="pose-grid">
+          <button class="pose-btn" data-pose="auto" type="button">Auto</button>
+          <button class="pose-btn" data-pose="idle" type="button">Idle</button>
+          <button class="pose-btn" data-pose="wave" type="button">Wave</button>
+          <button class="pose-btn" data-pose="think" type="button">Think</button>
+          <button class="pose-btn" data-pose="celebrate" type="button">Cheer</button>
+          <button class="pose-btn" data-pose="tea" type="button">Tea Break</button>
+        </div>
+
+        <div class="control-group">
+          <div class="control-row">
+            <label for="range-size">Size</label>
+            <div class="size-presets" role="group" aria-label="Character size">
+              <button class="size-preset" data-size="180" title="Small, 180 pixels" type="button">S</button>
+              <button class="size-preset" data-size="320" title="Medium, 320 pixels" type="button">M</button>
+              <button class="size-preset" data-size="480" title="Large, 480 pixels" type="button">L</button>
+              <button class="size-preset" data-size="720" title="Extra large, 720 pixels" type="button">XL</button>
+              <button class="size-preset" data-size="1000" title="Fit to the browser window, up to 1,000 pixels" type="button">Fit</button>
+            </div>
+            <span id="val-size" class="val-pill">175px</span>
+          </div>
+          <input id="range-size" type="range" min="110" max="1000" step="5" />
+        </div>
+
+        <details class="advanced-settings">
+        <summary>Behavior &amp; performance</summary>
+        <div class="toggles-list">
+        <div class="control-group">
+          <div class="control-row">
+            <label for="range-opacity">Opacity</label>
+            <span id="val-opacity" class="val-pill">100%</span>
+          </div>
+          <input id="range-opacity" type="range" min="40" max="100" step="5" />
+        </div>
+
+          <label class="toggle-item"><div class="toggle-info"><span class="toggle-title">Animation</span><span class="toggle-desc">Turn off for a still companion</span></div><input id="toggle-motion" type="checkbox" /></label>
+          <div id="physics-controls">
+            <label class="toggle-item"><div class="toggle-info"><span class="toggle-title">3D body physics</span><span class="toggle-desc">Body, hair, clothing and accessory follow-through</span></div><input id="toggle-physics" type="checkbox" /></label>
+            <div class="control-group"><div class="control-row"><label for="range-physics">Motion intensity</label><span id="val-physics" class="val-pill">90%</span></div><input id="range-physics" type="range" min="0" max="100" step="5" /></div>
+            <div class="control-group"><div class="control-row"><label for="range-chest">Chest bounce</label><span id="val-chest" class="val-pill">100%</span></div><input id="range-chest" type="range" min="0" max="100" step="5" /></div>
+            <button id="btn-preview-physics" class="secondary-btn full" type="button">Preview motion</button>
+          </div>
+          <label class="toggle-item"><div class="toggle-info"><span class="toggle-title">Depth effect</span><span class="toggle-desc">Gentle perspective as your cursor moves</span></div><input id="toggle-25d" type="checkbox" /></label>
+          <label class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Page stroll</span>
+              <span class="toggle-desc">Take occasional walks in Auto mode</span>
+            </div>
+            <input id="toggle-stroll" type="checkbox" />
+          </label>
+          <label class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Follow cursor</span>
+              <span class="toggle-desc">Subtle gaze toward your pointer</span>
+            </div>
+            <input id="toggle-cursor" type="checkbox" />
+          </label>
+          <label class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Speech bubbles</span>
+              <span class="toggle-desc">Show greetings and short messages</span>
+            </div>
+            <input id="toggle-bubbles" type="checkbox" />
+          </label>
+          <label class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Break reminders</span>
+              <span class="toggle-desc">Hourly gentle reminder to rest eyes and hydrate</span>
+            </div>
+            <input id="toggle-wellness" type="checkbox" />
+          </label>
+        </div>
+        </details>
+      </section>
+
+      <!-- Alerts Tab -->
+      <section id="tab-alerts" class="panel">
+        <div class="toggles-list">
+          <label class="toggle-item">
+            <span>Open-Tab Notifications</span>
+            <input id="toggle-tab-alerts" type="checkbox" />
+          </label>
+          <div class="toggle-item">
+            <span>Reaction Motion</span>
+            <select id="alert-pose-select" class="pose-select">
+              <option value="celebrate">Cheer (Celebrate)</option>
+              <option value="wave">Wave</option>
+              <option value="tea">Tea Break</option>
+              <option value="think">Thinking</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pending-bar">
+          <span id="pending-alerts-text">No pending tab alerts</span>
+          <button id="btn-clear-alerts" class="secondary-btn mini-btn" type="button">Clear</button>
+        </div>
+
+        <div class="section-label">Watch Open Tabs</div>
+        <div id="alerts-app-list" class="alerts-list"></div>
+
+        <div class="section-label">Custom Domains (Unread Title)</div>
+        <div class="quote-add-row">
+          <input id="custom-domain-input" type="text" maxlength="80" placeholder="e.g. slack.com or linear.app" />
+          <button id="btn-add-domain" class="primary-btn small" type="button">Add</button>
+        </div>
+        <ul id="custom-domains-list" class="quotes-list"></ul>
+      </section>
+
+      <!-- Focus Timer Tab -->
+      <section id="tab-timer" class="panel">
+        <div class="timer-card">
+          <div class="phase-pills">
+            <button id="phase-focus" class="phase-btn active" type="button">Focus</button>
+            <button id="phase-break" class="phase-btn" type="button">Tea Break</button>
+          </div>
+          <div id="timer-display" class="timer-display">25:00</div>
+          <p id="timer-hint" class="timer-hint">She switches to Thinking while focusing and Tea Break on rest.</p>
+          <div class="timer-controls">
+            <button id="btn-timer-start" class="primary-btn" type="button">Start</button>
+            <button id="btn-timer-reset" class="secondary-btn" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="presets-row">
+          <button class="preset-btn" data-focus="15" data-break="5" type="button">15 / 5</button>
+          <button class="preset-btn" data-focus="25" data-break="5" type="button">25 / 5</button>
+          <button class="preset-btn" data-focus="50" data-break="10" type="button">50 / 10</button>
+        </div>
+      </section>
+
+      <!-- Per-Motion Bubble Texts Tab -->
+      <section id="tab-quotes" class="panel">
+        <div id="motion-quote-tabs" class="motion-tabs" role="tablist">
+          <button class="motion-tab active" data-motion="idle" type="button">Idle</button>
+          <button class="motion-tab" data-motion="wave" type="button">Wave</button>
+          <button class="motion-tab" data-motion="think" type="button">Think</button>
+          <button class="motion-tab" data-motion="celebrate" type="button">Cheer</button>
+          <button class="motion-tab" data-motion="tea" type="button">Tea</button>
+        </div>
+
+        <div class="quotes-meta-row">
+          <span id="quote-motion-label" class="section-label">Idle Bubbles</span>
+          <div class="quotes-meta-right">
+            <span id="quote-count-pill" class="val-pill">4 / 10</span>
+            <button id="btn-reset-motion-quotes" class="chip-btn ghost mini-reset" type="button"
+              title="Restore 4 default texts for this motion">Reset 4</button>
+          </div>
+        </div>
+
+        <div class="quote-add-row">
+          <input id="quote-input" type="text" maxlength="140" placeholder="Add bubble text for Idle (max 10)..." />
+          <button id="btn-add-quote" class="primary-btn small" type="button">Add</button>
+        </div>
+        <ul id="quotes-list" class="quotes-list"></ul>
+        <button id="btn-test-bubble" class="secondary-btn full" type="button">Say Random Idle Text Now</button>
+      </section>
+    </main>
+  </div>
+
+  <script src="../shared/defaults.js"></script>
+  <script src="../shared/model-store.js"></script>
+  <script src="popup.js"></script>
+</body>
+
+</html>

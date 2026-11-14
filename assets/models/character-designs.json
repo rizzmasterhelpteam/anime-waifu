@@ -1,0 +1,28 @@
+{
+  "style": "adult-reference-matched",
+  "referenceSprites": {
+    "seraphina": "assets/sprites/idle.png",
+    "companion_alt": "assets/sprites/crimson/idle.png"
+  },
+  "characters": {
+    "seraphina": {
+      "hair": "silver lavender, swept bangs, loose long hair",
+      "eyes": "violet",
+      "outfit": "showy navy-and-burgundy sweetheart gown, open shoulders, high leg slit and bright gold piping",
+      "jewelry": "silver teardrop earrings and gold-framed amethyst pendant",
+      "stockings": "warm taupe",
+      "shoes": "dark strappy heels",
+      "agePresentation": 25,
+      "body": "fuller rounded bust, tailored waist, subtly fuller hips"
+    },
+    "companion_alt": {
+      "hair": "dark cherry bob, swept bangs, one red bow",
+      "eyes": "berry ruby",
+      "outfit": "fitted burgundy coat with curved waist and hips, tapered hem and slim sleeves, black waistcoat, ivory collar, gold piping and buttons",
+      "jewelry": "gold-framed ruby brooch and ruby teardrop earrings",
+      "stockings": "plum charcoal",
+      "shoes": "black laced ankle boots",
+      "body": "natural adult proportions with a defined waist and softly rounded chest and hips"
+    }
+  }
+}

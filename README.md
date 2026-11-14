@@ -50,4 +50,3 @@ See [STUDIO_UPDATE.md](STUDIO_UPDATE.md) for implementation notes, asset provena
 
 ## Credentials
 Keep private API keys, Supabase secret/service-role keys, environment files and browser profiles out of Git. Future AI credentials belong in backend secrets, not extension source.
-
