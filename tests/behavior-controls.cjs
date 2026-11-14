@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync(require('node:path').join(__dirname,'../content/companion.js'),'utf8');
+const start=source.indexOf('  function requestBehavior(action)');
+const end=source.indexOf('  chrome.runtime.onMessage.addListener',start);
+let motion=false,paused=true,performed=null,walk=null,scheduled=0;
+const state={animator:{setMicroMotion:v=>motion=v,setPaused:v=>paused=v},hostEl:{},document:{hidden:false},isFullscreenBlocked:()=>false,Date,performance:{now:()=>1000},lastPageActivity:0,stopStroll(){},settings:{poseMode:'idle',interactionFrequency:'quiet',microMotion:false,autoStroll:false,position:{right:24,bottom:18},sizePx:280},brain:{},nextStrollAt:0,performBehavior:(id,manual)=>performed={id,manual},scheduleAutoBehavior:()=>scheduled++,clampPosition:(right,bottom)=>({right,bottom}),runSmoothStroll:(delta,duration)=>walk={delta,duration},syncPose(){},handleClickReaction:()=>performed={id:'interact'}};
+vm.createContext(state);vm.runInContext(source.slice(start,end),state);
+assert.equal(state.requestBehavior('auto').ok,true);assert.equal(state.settings.interactionFrequency,'balanced');assert.equal(state.settings.poseMode,'auto');assert(motion&&!paused);assert.equal(state.nextStrollAt,16000);assert.equal(scheduled,1);assert.equal(performed.id,'greet');
+state.settings.interactionFrequency='quiet';assert.equal(state.requestBehavior('dance').ok,true);assert.equal(performed.id,'dance');assert(performed.manual,'Explicit dance must bypass automatic quiet gating');
+assert.equal(state.requestBehavior('walk').ok,true);assert.equal(walk.delta,120);assert.equal(walk.duration,1700);
+assert.equal(state.requestBehavior('missing').ok,false);
+state.document.hidden=true;assert.equal(state.requestBehavior('dance').ok,false);
+console.log('Control checks passed: Quiet-to-Auto, animation resume, immediate manual dance/walk, invalid and hidden-page feedback.');

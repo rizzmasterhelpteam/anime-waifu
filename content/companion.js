@@ -19,6 +19,7 @@
 
   const brain = new window.WAIFU_SHARED.CompanionBrain();
   let lastPageActivity = Date.now();
+  let nextStrollAt = performance.now()+45000;
   let behaviorProp = null;
   let behaviorPropTimer = null;
   const HOST_ID = "seraphina-waifu-companion-host";
@@ -173,7 +174,7 @@
 
   function syncPose() {
     if (!animator) return;
-    if(timer?.status==='running' || settings.interactionFrequency==='quiet'){
+    if(timer?.status==='running' || (settings.interactionFrequency==='quiet' && !animator.behavior?.manual)){
       animator.behavior=null;
       if(behaviorProp)behaviorProp.hidden=true;
       if(temporaryPoseTimer)clearTimeout(temporaryPoseTimer);
@@ -189,7 +190,8 @@
     const btns = toolbarEl.querySelectorAll("[data-pose]");
     btns.forEach((btn) => {
       const id = btn.getAttribute("data-pose");
-      const isActive = id === activePose || (id === "auto" && settings.poseMode === "auto");
+      const quiet=settings.interactionFrequency==='quiet';
+      const isActive=id==='quiet'?quiet:id==='auto'?(settings.poseMode==='auto'&&!quiet):id==='idle'&&settings.poseMode==='idle';
       btn.classList.toggle("active", isActive);
     });
   }
@@ -465,9 +467,13 @@
     autoBehaviorTimer = setTimeout(() => {
       autoBehaviorTimer=null;
       if(!hostEl) return;
-      const paused=document.hidden || !document.hasFocus() || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || isUserTypingNow() || timer?.status==='running' || !settings.microMotion;
+      const paused=document.hidden || !document.hasFocus() || Date.now()-lastPageActivity>300000 || isDragging || isStrolling || temporaryPose || isFullscreenBlocked() || timer?.status==='running' || !settings.microMotion;
       const action=brain.tick(performance.now(),paused,settings.interactionFrequency);
       if(action) performBehavior(action);
+      else if(!paused && settings.interactionFrequency!=='quiet' && settings.autoStroll && brain.stage!==3 && !isUserTypingNow() && performance.now()>nextStrollAt){
+        nextStrollAt=performance.now()+60000+Math.random()*30000;
+        startStroll();
+      }
       scheduleAutoBehavior();
     }, 2000);
   }
@@ -476,14 +482,16 @@
     seraphina:{garden:["A little patience, a little sunshine. Rather like you.","I'm tending my little garden. You keep doing your thing."],dance:["A little intermission. You may admire quietly.","Careful, I might catch you watching."],pout:["Oh, now I'm part of the scenery? How charming."],rest:["I'll enjoy a little quiet time."],sidestep:["Oh, now you noticed?"],showPlant:["Look what I've been growing."],greet:["There you are. I was perfectly entertained, of course.","You have my attention. Use it wisely."]},
     gothic_red:{garden:["This little plant is getting the royal treatment!","Grow, little one! I'll supervise."],dance:["Hey! You're missing my best moves!","Look at me! I practiced this one!"],pout:["Hmph. I'm being dramatically unbothered."],rest:["Fine, little break. I'll entertain myself."],sidestep:["Hmph! Give me a second…"],showPlant:["Look! My plant! Isn't it doing great?"],greet:["There you are! What shall we do?","Aha! You noticed me!"]}
   };
-  function performBehavior(id) {
-    if(!animator || document.hidden || timer?.status==='running') return;
+  function performBehavior(id, manual=false) {
+    if(!animator || document.hidden || (!manual && timer?.status==='running')) return;
+    if(manual){animator.setMicroMotion(true);animator.setPaused(false);}
+
     const crimson=settings.activeModel==='gothic_red';
     const duration={garden:20000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
     const pose=id==='greet'?'wave':id==='dance'?'celebrate':id==='rest'?'tea':id==='pout'?'think':'idle';
     const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
-    triggerTemporaryPose(pose,duration,lines?lines[Math.floor(Math.random()*lines.length)]:null);
-    animator.behavior={id,start:performance.now(),until:performance.now()+duration,crimson};
+    triggerTemporaryPose(pose,duration,lines && (manual || !isUserTypingNow())?lines[Math.floor(Math.random()*lines.length)]:null);
+    animator.behavior={id,start:performance.now(),until:performance.now()+duration,crimson,manual};
     if(behaviorPropTimer)clearTimeout(behaviorPropTimer);
     if(behaviorProp){
       behaviorProp.hidden=!(id==='garden'||id==='showPlant');
@@ -746,7 +754,7 @@
       openToolbar(8000);
     }, { passive: true });
 
-    const quickPoses = [{id:'auto',label:'Auto'},{id:'idle',label:'Stay'},{id:'interact',label:'Interact'},{id:'quiet',label:'Quiet'}];
+    const quickPoses = [{id:'auto',label:'Auto'},{id:'idle',label:'Stay'},{id:'interact',label:'Interact'},{id:'quiet',label:'Quiet'},{id:'dance',label:'Dance'},{id:'walk',label:'Walk'}];
     for (const p of quickPoses) {
       const b = document.createElement("button");
       b.type = "button";
@@ -764,16 +772,22 @@
         e.stopPropagation();
         openToolbar(750);
         stopStroll();
-        if(p.id==='interact'){handleClickReaction();return;}
+        if(['interact','dance','garden','walk'].includes(p.id)){requestBehavior(p.id);return;}
         settings.interactionFrequency=p.id==='quiet'?'quiet':'balanced';
         const nextMode = p.id==='quiet'?'auto':p.id;
         settings.poseMode = nextMode;
+        if(p.id==='auto'){
+          settings.microMotion=true;settings.autoStroll=true;
+          brain.elapsed=0;brain.stage=0;brain.last=performance.now();
+          nextStrollAt=performance.now()+15000;
+          animator.setMicroMotion(true);animator.setPaused(false);
+        }
         temporaryPose = null;
         chrome.storage.local.set({ settings });
         if (nextMode === "auto") {
           syncPose();
           scheduleAutoBehavior();
-          showBubble("Auto mode on~ I'll keep you company!", 3200);
+          showBubble(p.id==='quiet'?"Quiet mode. I'll keep things peaceful.":"Auto mode on~ I'll keep you company!", 3200);
           scheduleMotionChatter(MOTION_CHATTER_INTERVAL_MS);
         } else {
           if (autoBehaviorTimer) {
@@ -1258,7 +1272,7 @@
 
     const reaction=brain.touch(performance.now(),settings.activeModel==='gothic_red');
     if(reaction){
-      performBehavior(reaction);
+      performBehavior(reaction,true);
     }
     return;
   }
@@ -1457,7 +1471,29 @@
     return `${head}${extra} updated! (${countLabel})`;
   }
 
-  chrome.runtime.onMessage.addListener((msg) => {
+  function requestBehavior(action) {
+    if(!animator || !hostEl)return {ok:false,error:'Companion is still loading. Retry in a moment.'};
+    if(document.hidden || isFullscreenBlocked())return {ok:false,error:'Open the visible page containing your companion first.'};
+    if(!['auto','interact','dance','garden','walk'].includes(action))return {ok:false,error:'Unknown activity'};
+    lastPageActivity=Date.now();stopStroll();
+    animator.setMicroMotion(true);animator.setPaused(false);
+    if(action==='auto'){
+      settings.poseMode='auto';settings.interactionFrequency=settings.interactionFrequency==='quiet'?'balanced':settings.interactionFrequency;
+      settings.microMotion=true;settings.autoStroll=true;
+      brain.stage=0;brain.elapsed=0;brain.last=performance.now();nextStrollAt=performance.now()+15000;
+      performBehavior('greet',true);scheduleAutoBehavior();
+    }else if(action==='walk'){
+      const right=settings.position?.right??24;
+      const candidate=clampPosition(right+120,settings.position?.bottom??18,settings.sizePx,false);
+      const delta=Math.abs(candidate.right-right)>35?candidate.right-right:-120;
+      animator.behavior=null;
+      runSmoothStroll(delta,1700,{onComplete:()=>syncPose()});
+    }else if(action==='interact')handleClickReaction();
+    else performBehavior(action,true);
+    return {ok:true,action};
+  }
+
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || typeof msg !== "object") return;
     if (msg.type === "WAIFU_PHYSICS_PULSE" && hostEl) {
       animator?.triggerBounce();
@@ -1493,8 +1529,8 @@
       }
     } else if (msg.type === "WAIFU_PULSE_POSE" && hostEl) {
       triggerTemporaryPose(msg.pose || "wave", 3600, msg.quote || pickQuote(msg.pose === "wave" ? "greeting" : msg.pose));
-    } else if (msg.type === "WAIFU_BEHAVIOR_CONTROL" && hostEl) {
-      if(msg.action==='interact')handleClickReaction();
+    } else if (msg.type === "WAIFU_BEHAVIOR_CONTROL") {
+      sendResponse(requestBehavior(msg.action));
     } else if (msg.type === "WAIFU_AI_ACTION" && hostEl && animator) {
       if (typeof msg.expression === "string" && typeof animator.setExpression === "function") {
         animator.setExpression(msg.expression, msg.expressionWeight ?? 0.9);

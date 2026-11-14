@@ -1,6 +1,6 @@
 {
   "name": "anime-wifu",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Animated browser companions with Supabase accounts, settings sync and Gemini 3.8 Live voice.",
   "main": "background.js",
   "directories": {
@@ -10,7 +10,7 @@
     "build:auth": "esbuild shared/auth-entry.js --bundle --format=iife --global-name=WAIFU_AUTH_VENDOR --platform=browser --target=chrome110 --outfile=vendor/auth-bundle.js --minify",
     "test:cloud": "node tests/cloud-backend-review.cjs",
     "test:voice": "node tests/voice-contract.cjs",
-    "test:behavior": "node tests/behavior-brain.cjs"
+    "test:behavior": "node tests/behavior-brain.cjs && node tests/behavior-controls.cjs"
   },
   "repository": {
     "type": "git",

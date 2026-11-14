@@ -774,19 +774,34 @@
     els.poseBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const pose = btn.getAttribute("data-pose");
-        saveSettings({ poseMode: pose });
+        saveSettings(pose==='auto'?{poseMode:'auto',interactionFrequency:settings.interactionFrequency==='quiet'?'balanced':settings.interactionFrequency,microMotion:true,autoStroll:true}:{poseMode:pose});
+        const feedback=document.getElementById('behavior-feedback');
+        if(feedback)feedback.textContent=pose==='auto'?'Auto enabled. Walking resumes shortly; attention activities progress over 90–120 seconds.':'Staying here. Use an activity button for an immediate movement.';
+        if(pose==='auto')chrome.tabs.query({active:true,currentWindow:true}).then(([tab])=>tab?.id && chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:'auto'})).then(r=>{if(!r?.ok && feedback)feedback.textContent='Refresh your website to load the updated Auto controls.';}).catch(()=>{if(feedback)feedback.textContent='Refresh your website to connect the updated companion.';});
         if (previewAnimator) {
-          previewAnimator.setPose(pose === "auto" ? resolvePreviewPose() : pose, true);
+          previewAnimator.setMicroMotion(true);
+          previewAnimator.setPose(pose === "auto" ? 'wave' : pose, true);
         }
       });
     });
 
     document.getElementById('interaction-frequency')?.addEventListener('change',e=>saveSettings({interactionFrequency:e.target.value}));
-    document.querySelector('[data-behavior="interact"]')?.addEventListener('click',async()=>{
-      const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
-      if(tab?.id)chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:'interact'}).catch(()=>{});
-      previewAnimator?.triggerBounce?.();
-    });
+    document.querySelectorAll('[data-behavior]').forEach(button=>button.addEventListener('click',async()=>{
+      const feedback=document.getElementById('behavior-feedback');
+      button.disabled=true;feedback.textContent='Starting activity…';
+      try{
+        const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
+        if(!tab?.id || !/^https?:/.test(tab.url||''))throw Error('Open a regular website first. Browser settings pages cannot show the companion.');
+        const response=await chrome.tabs.sendMessage(tab.id,{type:'WAIFU_BEHAVIOR_CONTROL',action:button.dataset.behavior});
+        if(!response?.ok)throw Error(response?.error||'Reload the extension and refresh this page to load the updated controls.');
+        feedback.textContent=button.textContent+' started on your page.';
+        if(previewAnimator){
+          previewAnimator.setMicroMotion(true);previewAnimator.setPose(button.dataset.behavior==='dance'?'celebrate':button.dataset.behavior==='interact'?'wave':'idle',true);
+          previewAnimator.behavior={id:button.dataset.behavior,start:performance.now(),until:performance.now()+11000,crimson:settings.activeModel==='gothic_red',manual:true};
+        }
+      }catch(e){feedback.textContent=e.message?.includes('Receiving end')?'Refresh this website to connect the updated companion.':e.message||'Could not start activity';}
+      finally{button.disabled=false;}
+    }));
 
     document.querySelectorAll(".size-preset").forEach(button => {
       button.addEventListener("click", () => {
