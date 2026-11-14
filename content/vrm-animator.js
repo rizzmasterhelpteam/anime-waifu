@@ -1025,8 +1025,9 @@
       const breath = this.microMotion ? Math.sin(t * 2.15) : 0;
       const gentleSway = this.microMotion ? Math.sin(t * 1.1) : 0;
 
-      // Natural arm rest drop angle relative to T-pose: ~1.16 rad (66 deg down from horizontal)
-      const armDown = 1.35;
+      // Seraphina's fitted gown extends beyond the old wrist path. Keep her
+      // relaxed arms clear of the skirt instead of burying the hands inside it.
+      const armDown = this.modelKey === 'seraphina' ? 1.20 : 1.35;
       let lArmRx = 0, lArmRy = 0, lArmRz = -(armDown - this.restArmDropLeft);
       let lForeRx = 0, lForeRy = -0.18, lForeRz = 0;
 
