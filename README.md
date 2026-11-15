@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.6**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.10.0**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -18,13 +18,13 @@ Walking wanders across the whole available browser viewport, including diagonal 
 
 **Calm** keeps the companion standing idle with natural blinking/breathing. It does not walk, dance, garden or perform notification gestures; notification text can still appear. Tapping in Calm acknowledges the user without starting movement. Playful pauses during focus/break timers, hidden tabs, dragging, fullscreen blocking and disabled animation. It does not stop merely because the user has been inactive for five minutes. Automatic activity bubbles are rate-limited to avoid chatter after every walk or action.
 
-Only Calm and Playful appear in the dashboard and character toolbar. Mode selections are synchronized. Dance uses transparent video-derived 24 FPS frames in 2D and source-frame retargeted skeletal GLB tracks in 3D; gardening uses a synchronized sequence: soil, watering, sprout, full plant, then a look and comment. The lightweight SVG pot, watering can and plant are shared across render modes, with mode-specific body gestures. The props are an overlay, including in 3D mode. Brain state remains session-local. No API calls or payment changes are involved.
+Only Calm and Playful appear in the dashboard and character toolbar. Mode selections are synchronized. Both modes share the personality brain and activity timings. 2D retains its transparent video-derived dance and four intact walking poses; original bitmap proportions and opacity remain fixed while walking.
 
-2D walking uses the four clean, registered source poses with 60 Hz movement. Original bitmap proportions and full opacity stay fixed while walking. 3D walking uses planted stance/swing IK, restrained heel-to-toe roll, a narrow catwalk stance and counterbalanced hips/shoulders. Each 3D dance uses its own 2D clip as a timing reference, with conditioned weight shifts, steps, hand gestures and timed winks. Unstable spins become gentle turns; constrained joints, bounded rotation speeds and smooth entry/exit prevent abrupt twisting. Clips are 43–52% smaller and use cached quaternion playback. Adult rig proportions are preserved. Inferred depth and hidden joints remain approximate.
+Both native 3D models now use complete authored skeletal clips, retargeted from the CC0 Quaternius and KayKit libraries. One coordinated body performance drives each action, with a 450 ms whole-pose transition. The former native 3D procedural pose stack, video-estimated dance and per-frame Euler/hinge overrides are bypassed. Forearm rotation, wrist motion, torso balance, foot roll and fingers retain their authored 3D relationship. The relaxed idle pose is adapted to the fitted outfits. 3D choreography differs from the 2D video.
 
-All 3D actions share joint smoothing, rotation-speed limits, elbow/knee constraints and support-height correction. Hand IK drives waving, thinking, tea, crossed-arm pouting and gardening. The 3D gardening can follows the hand, pours into a real 3D pot, then gives way to staged plant growth and a presentation gesture. Static mode settles cleanly; direction reversals and action interruptions blend smoothly.
+3D walking uses the normal authored walk with arm swing. Screen travel is paced against the measured stride, including diagonal journeys, and heading changes ease into the new direction. Gardening uses authored standing watering motion, a hand-following 3D can, soil/pot, staged growth and a final presentation gesture. Calm, interruption and model changes clean up props and delayed reveal text. No API or paid service runs these animations.
 
-See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup; `npm run test:motion` checks full rig motion across all 12 actions on both measured rigs, gardening, static poses, cancellation and 2D walk stability.
+See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies 2D/legacy playback, authored clip loops and 3D joint data; `npm run test:motion` checks full rig motion across all 12 actions on both measured rigs, gardening, static poses, cancellation and 2D walk stability.
 
 ## Install
 1. Clone or download this repository.

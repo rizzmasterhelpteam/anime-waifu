@@ -63,7 +63,7 @@ const out=process.env.REVIEW_OUTPUT || require('path').join(__dirname,'../work/s
  await page.goto(BASE+'/tests/test_animator_tea.html');
  await page.setContent('<html><body style="margin:0;background:#23232d"><canvas id="c"></canvas></body></html>');
  await page.addScriptTag({url:BASE+'/vendor/vrm-bundle.js'});
- await page.addScriptTag({url:BASE+'/content/secondary-motion.js'});await page.addScriptTag({url:BASE+'/content/vrm-animator.js'});
+ await page.addScriptTag({url:BASE+'/content/secondary-motion.js'});await page.addScriptTag({url:BASE+'/content/authored-motion.js'});await page.addScriptTag({url:BASE+'/content/vrm-animator.js'});
  for(const model of ['seraphina','companion_alt']){
    await page.evaluate(async model=>{
      window.a?.destroy(); const old=document.querySelector('canvas');const c=document.createElement('canvas');old.replaceWith(c);

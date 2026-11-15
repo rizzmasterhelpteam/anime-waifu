@@ -5,7 +5,7 @@ const assert=require('assert/strict'),fs=require('fs');const out=process.env.REV
  const browser=await chromium.launch({executablePath:process.env.BROWSER_PATH,headless:true,args:['--use-angle=swiftshader','--enable-webgl']});
  const p=await browser.newPage({viewport:{width:1000,height:800}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(BASE+'/README.md');await p.setContent('<body style="margin:0;background:#23232d"><canvas></canvas></body>');
- for(const f of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:BASE+'/'+f});
+ for(const f of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/authored-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:BASE+'/'+f});
  const results=[];
  for(const name of ['seraphina','companion_alt']){
   const result=await p.evaluate(async name=>{

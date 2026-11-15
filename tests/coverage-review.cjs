@@ -4,7 +4,7 @@ const assert=require('assert/strict'),fs=require('fs');const out=process.env.REV
  const browser=await chromium.launch({executablePath:process.env.BROWSER_PATH,headless:true,args:['--use-angle=swiftshader','--enable-webgl']});
  const p=await browser.newPage({viewport:{width:1050,height:760}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto('http://127.0.0.1:8765/README.md');await p.setContent('<body style="margin:0;display:flex;padding:20px;gap:35px;background:repeating-conic-gradient(#f8f9fb 0% 25%,#d5dbe4 0% 50%) 0 / 32px 32px"><section><h3 style="font:15px Segoe UI;text-align:center">Seraphina</h3><canvas id="s"></canvas></section><section><h3 style="font:15px Segoe UI;text-align:center">Crimson</h3><canvas id="c"></canvas></section></body>');
- for(const file of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:'http://127.0.0.1:8765/'+file});
+ for(const file of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/authored-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:'http://127.0.0.1:8765/'+file});
  await p.evaluate(async()=>{
   window.models=[];
   for(const [id,name]of[['s','seraphina'],['c','companion_alt']]){

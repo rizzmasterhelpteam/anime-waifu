@@ -34,3 +34,4 @@ assert(Math.abs(motionState.settings.position.right-70)<.01);assert(Math.abs(mot
 assert(motionState.wrapEl.style.transform.includes('-40.00px'),'Travel must update vertical transform, not just pick a vertical destination');
 frameCallback(2000);assert.equal(motionState.settings.position.right,120);assert.equal(motionState.settings.position.bottom,100);assert(speeds.some(v=>v>60));
 console.log('Two-axis path interpolation and diagonal gait speed passed.');
+speeds.length=0;motionState.animator.authoredMotion={walkSpeedPx:()=>40};motionState.settings.position={right:20,bottom:20};motionState.runSmoothStroll(100,1000,{deltaBottom:80});frameCallback(1800);assert(speeds.every(v=>v<=40.001),'3D screen travel must respect the actual authored stride speed');frameCallback(10000);assert.equal(motionState.settings.position.right,120);assert.equal(motionState.settings.position.bottom,100);

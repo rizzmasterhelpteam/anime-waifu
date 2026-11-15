@@ -23,7 +23,7 @@ const fixture=()=>{
  assert((await p.evaluate(()=>document.body.scrollHeight))<=600);
  await p.screenshot({path:out+'/size-controls.png',clip:{x:0,y:0,width:380,height:600}});
  await p.goto(BASE+'/README.md');await p.setContent('<body style="margin:0;background:#252630"><h2 style="color:#ddd;font:20px Segoe UI;margin:25px">Companion size & walking review</h2></body>');
- for(const file of ['shared/defaults.js','vendor/vrm-bundle.js','content/animator.js','content/secondary-motion.js','content/vrm-animator.js','content/companion.js'])await p.addScriptTag({url:BASE+'/'+file});
+ for(const file of ['shared/defaults.js','vendor/vrm-bundle.js','content/animator.js','content/secondary-motion.js','content/authored-motion.js','content/vrm-animator.js','content/companion.js'])await p.addScriptTag({url:BASE+'/'+file});
  await p.waitForFunction(()=>instances.at(-1)?.sprites?.size===12);
  assert.equal(await p.evaluate(()=>instances.at(-1).displayHeight),744);
  await p.screenshot({path:out+'/large-companion.png'});
@@ -43,7 +43,7 @@ const fixture=()=>{
  });
  assert(spriteTiming.every(s=>s.transitions>=11),JSON.stringify(spriteTiming));
  await p.goto(BASE+'/README.md');await p.setContent('<body style="margin:0;display:flex;background:#23232d"><canvas id="c"></canvas></body>');
- await p.addScriptTag({url:BASE+'/vendor/vrm-bundle.js'});await p.addScriptTag({url:BASE+'/content/secondary-motion.js'});await p.addScriptTag({url:BASE+'/content/vrm-animator.js'});
+ await p.addScriptTag({url:BASE+'/vendor/vrm-bundle.js'});await p.addScriptTag({url:BASE+'/content/secondary-motion.js'});await p.addScriptTag({url:BASE+'/content/authored-motion.js'});await p.addScriptTag({url:BASE+'/content/vrm-animator.js'});
  await p.setViewportSize({width:1200,height:850});
  const metrics=[];
  for(const name of ['seraphina','companion_alt']){

@@ -298,6 +298,10 @@
     const startB = settings.position?.bottom ?? 18;
     const deltaB=Number(options.deltaBottom)||0;
     const distance=Math.hypot(deltaR,deltaB);
+    // Match screen travel to the authored stride instead of making a slow gait
+    // slide rapidly across the page. 2D retains its existing movement speed.
+    const gaitSpeed=animator?.authoredMotion?.walkSpeedPx?.(1.15);
+    if(gaitSpeed>0)durationMs=Math.max(durationMs,distance/(gaitSpeed*.84)*1000);
     const moveDirX = Math.abs(deltaR)>2?-deltaR:(Math.random()<.5?-1:1);
     const startTs = performance.now();
 

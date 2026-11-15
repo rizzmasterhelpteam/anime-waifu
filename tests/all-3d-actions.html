@@ -1,33 +1,34 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>3D action review</title>
 <style>body{margin:0;background:#262733;color:#eee;font:15px system-ui}header{padding:12px 20px}h1{font-size:20px}button{padding:8px 12px;margin:3px;border:0;border-radius:5px}main{display:flex;justify-content:center;gap:12px}section{text-align:center}canvas{background:#30313d;border:1px solid #555;border-radius:8px}output{display:block;font:13px monospace}#status{margin:10px}</style>
-<header><h1>Both 3D rigs — complete action review</h1><div id="actions"></div><button id="pause">Pause</button><button id="pose">Pose checkpoint</button><button id="water">Watering checkpoint</button><button id="growth">Growth checkpoint</button><button id="reveal">Reveal checkpoint</button><button id="cancel">Cancel to idle</button><button id="review">Review all poses</button><p id="status">Loading both models…</p></header>
+<header><h1>Both 3D rigs — complete action review</h1><div id="actions"></div><button id="pause">Pause</button><button id="pose">Pose checkpoint</button><button id="soil">Soil checkpoint</button><button id="water">Watering checkpoint</button><button id="growth">Growth checkpoint</button><button id="reveal">Reveal checkpoint</button><button id="cancel">Cancel to idle</button><button id="review">Review all poses</button><p id="status">Loading both models…</p></header>
 <main><section><h2>Seraphina</h2><canvas id="seraphina"></canvas><output id="seraphina-info"></output></section><section><h2>Crimson</h2><canvas id="gothic_red"></canvas><output id="gothic_red-info"></output></section></main>
-<script>window.chrome={runtime:{getURL:p=>'/'+p+'?actions=196'}};</script>
-<script src="/vendor/vrm-bundle.js"></script><script src="/shared/defaults.js"></script><script src="/shared/dance-player.js?actions=196"></script><script src="/content/secondary-motion.js?actions=196"></script><script src="/content/vrm-animator.js?actions=196"></script>
+<script>window.chrome={runtime:{getURL:p=>'/'+p+'?actions=1105'}};</script>
+<script src="/vendor/vrm-bundle.js"></script><script src="/shared/defaults.js"></script><script src="/shared/dance-player.js?actions=1105"></script><script src="/content/secondary-motion.js?actions=1105"></script><script src="/content/authored-motion.js?actions=1105"></script><script src="/content/vrm-animator.js?actions=1105"></script>
 <script>
 const rigs=[],status=document.querySelector('#status'),pause=document.querySelector('#pause');
-let running=true,ready=false,clock=performance.now(),elapsed=0,action='idle';
+let running=true,ready=false,clock=performance.now(),baseTime=clock,elapsed=0,action='idle';
 const durations={garden:16,dance:10,pout:8,sidestep:6,showPlant:6,rest:16};
 async function choose(id){
- if(!ready)return;action=id;clock=performance.now();elapsed=0;running=true;pause.textContent='Pause';
- for(const a of rigs){a.behavior=null;a.setWalking(false);a.setPose(['wave','think','tea','celebrate'].includes(id)?id:id==='rest'?'tea':'idle',false);if(id==='dance'){await a.prepareDance();}if(durations[id])a.behavior={id,start:10000,until:10000+durations[id]*1000,crimson:a.modelKey==='gothic_red'};if(id==='walk')a.setWalking(true,1,210);}
+ if(!ready)return;action=id;clock=performance.now();baseTime=clock;elapsed=0;running=true;pause.textContent='Pause';
+ for(const a of rigs){a.behavior=null;a.setWalking(false);a.setPose(['wave','think','tea','celebrate'].includes(id)?id:id==='rest'?'tea':'idle',false);a.poseEnteredAt=baseTime;a.lastFrameTime=baseTime;a.nextBlinkAt=baseTime+2400;a.blinkUntil=0;if(id==='dance'){await a.prepareDance();}if(durations[id])a.behavior={id,start:baseTime,until:baseTime+durations[id]*1000,crimson:a.modelKey==='gothic_red'};if(id==='walk')a.setWalking(true,1,a.authoredMotion?.walkSpeedPx(1.05)||100);}
 }
 for(const id of ['idle','walk','garden','dance','wave','think','tea','celebrate','pout','rest','sidestep','showPlant']){const b=document.createElement('button');b.textContent=id;b.onclick=()=>choose(id);document.querySelector('#actions').append(b);}
-function render(t){for(const a of rigs){a.renderFrame(10000+t*1000);const foot=a.boneMap.get('rightFoot').node,p=new WAIFU_VRM_VENDOR.THREE.Vector3();foot.getWorldPosition(p);document.querySelector('#'+a.modelKey+'-info').textContent='right ankle '+p.y.toFixed(3)+' • garden '+Boolean(a.garden3D?.group.visible);}status.textContent=action+' • '+t.toFixed(2)+' s';}
+function render(t){for(const a of rigs){a.renderFrame(baseTime+t*1000);const foot=a.boneMap.get('rightFoot').node,p=new WAIFU_VRM_VENDOR.THREE.Vector3();foot.getWorldPosition(p);document.querySelector('#'+a.modelKey+'-info').textContent=(a.authoredMotion?'Authored '+a.authoredMotion.name:'Fallback')+' • ankle '+p.y.toFixed(3)+' • garden '+Boolean(a.garden3D?.group.visible)+' • lining '+(a.motionLiningCount||0)+' • dress '+(a.motionDressFitCount||0);}status.textContent=action+' • '+t.toFixed(2)+' s';}
 async function checkpoint(t,id='garden'){
  await choose(id);running=false;pause.textContent='Play';
  const renderers=rigs.map(a=>a.renderer.render);for(const a of rigs)a.renderer.render=()=>{};
  try{for(let i=0;i<=Math.round(t*60);i++)render(i/60);}finally{rigs.forEach((a,i)=>a.renderer.render=renderers[i]);}
  render(t);elapsed=t;
 }
+for(const [label,angle]of [['Front',0],['Side',Math.PI/2],['Back',Math.PI]]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{for(const a of rigs)a.orbitYaw=a.targetOrbitYaw=angle;render(elapsed);};document.querySelector('header').append(b);}
 document.querySelector('#pose').onclick=()=>checkpoint(action==='dance'?5.5:2.5,action);
 document.querySelector('#review').onclick=async()=>{
  if(!ready)return;const sheet=document.querySelector('#sheet')||document.createElement('canvas');sheet.id='sheet';sheet.width=1200;sheet.height=1280;sheet.style.cssText='display:block;max-width:100%;height:auto;margin:20px auto';document.body.append(sheet);const c=sheet.getContext('2d');c.fillStyle='#30313d';c.fillRect(0,0,1200,1280);
  const actions=['idle','walk','garden','dance','wave','think','tea','celebrate','pout','rest','sidestep','showPlant'];
- for(let i=0;i<actions.length;i++){await checkpoint(actions[i]==='garden'?3.5:actions[i]==='dance'?5.5:2.5,actions[i]);const x=i%3*400,y=Math.floor(i/3)*320;c.fillStyle='#eee';c.font='17px system-ui';c.fillText(actions[i]+' — Seraphina / Crimson',x+10,y+22);for(let j=0;j<2;j++)c.drawImage(rigs[j].canvas,x+j*200+7,y+32,184,280);}
+ for(let i=0;i<actions.length;i++){await checkpoint(actions[i]==='garden'?4.6:actions[i]==='dance'?5.5:2.5,actions[i]);const x=i%3*400,y=Math.floor(i/3)*320;c.fillStyle='#eee';c.font='17px system-ui';c.fillText(actions[i]+' — Seraphina / Crimson',x+10,y+22);for(let j=0;j<2;j++)c.drawImage(rigs[j].canvas,x+j*200+7,y+32,184,280);}
  status.textContent='All 12 pose checkpoints rendered';
 };
-document.querySelector('#water').onclick=()=>checkpoint(3.5);document.querySelector('#growth').onclick=()=>checkpoint(8.5);document.querySelector('#reveal').onclick=()=>checkpoint(13.5);document.querySelector('#cancel').onclick=()=>choose('idle');
+document.querySelector('#soil').onclick=()=>checkpoint(1.4);document.querySelector('#water').onclick=()=>checkpoint(4.6);document.querySelector('#growth').onclick=()=>checkpoint(8.5);document.querySelector('#reveal').onclick=()=>checkpoint(13.5);document.querySelector('#cancel').onclick=()=>choose('idle');
 pause.onclick=()=>{running=!running;pause.textContent=running?'Pause':'Play';clock=performance.now()-elapsed*1000;};
 function frame(now){if(ready&&running){elapsed=(now-clock)/1000;render(elapsed);}requestAnimationFrame(frame);}
 (async()=>{for(const key of ['seraphina','gothic_red']){const a=new WaifuVrmAnimator(document.querySelector('#'+key),{modelKey:key,height:440,depth25D:false});a.fetchModelBuffer=async()=>({buffer:await(await fetch('/assets/models/'+(key==='gothic_red'?'companion_alt':'seraphina')+'.vrm')).arrayBuffer(),source:'bundled',name:key+'.vrm'});if(!await a.preloadAll())throw Error(key+' failed to load');a.stopLoop();a.startTime=10000;a.lastFrameTime=10000;rigs.push(a);}ready=true;await choose('idle');requestAnimationFrame(frame);})().catch(e=>status.textContent='ERROR '+e.stack);

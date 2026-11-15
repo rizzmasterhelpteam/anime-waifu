@@ -1,0 +1,42 @@
+{
+  "license": "CC0-1.0",
+  "sources": [
+    {
+      "author": "Quaternius",
+      "page": "https://quaternius.itch.io/universal-animation-library",
+      "mirror": "https://github.com/J-Ponzo/gltf-universal-animation-library",
+      "gltfBlob": "d9e132ad1d41089f8f96488775829d220a4beb05",
+      "binaryBlob": "481652b8b1571b15c254b44f4d9b9f702498f948"
+    },
+    {
+      "author": "Quaternius",
+      "page": "https://quaternius.itch.io/universal-animation-library-2",
+      "edition": "Standard",
+      "uploadId": "17958478"
+    },
+    {
+      "author": "Kay Lousberg",
+      "page": "https://kaylousberg.itch.io/kaykit-character-animations",
+      "edition": "Free 1.1",
+      "uploadId": "15799903"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "AnimationLibrary_Godot_Standard.gltf",
+      "sha256": "0ff075c7ad6855c5c2c37a171592ee8f0d6ab2f58259e2be77a9b63dd8027765"
+    },
+    {
+      "path": "AnimationLibrary_Godot_Standard.bin",
+      "sha256": "6e65377d81558333c4093dbb144a48fd19019343d82b1a3a7992a98ec0e0543c"
+    },
+    {
+      "path": "library2.glb",
+      "sha256": "8cee20ab1bc55130092447e810e26df22dd2803eccc54f52137a7d54d7ab88a8"
+    },
+    {
+      "path": "kaykit/Rig_Medium_Simulation.glb",
+      "sha256": "ab6ffeed40c8281dd0ce0506534eadf7385151f1c266643a10fa2a0f0a7ba3b1"
+    }
+  ]
+}

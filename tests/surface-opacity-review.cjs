@@ -2,7 +2,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const fs=require('fs');const base=process.env.REVIEW_BASE_URL||'http://127.0.0.1:8765';const out=process.env.REVIEW_OUTPUT||require('path').join(__dirname,'../work/full-opacity');fs.mkdirSync(out,{recursive:true});
 (async()=>{const b=await chromium.launch({executablePath:process.env.BROWSER_PATH,headless:true,args:['--use-angle=swiftshader','--enable-webgl']});const p=await b.newPage({viewport:{width:1400,height:1000}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
 await p.goto(base+'/README.md');await p.setContent('<body style="margin:0;display:flex;background:repeating-conic-gradient(#fff 0% 25%,#9cc8d5 0% 50%) 0 / 24px 24px"><canvas id="s"></canvas><canvas id="c"></canvas></body>');
-for(const f of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:base+'/'+f});
+for(const f of ['vendor/vrm-bundle.js','content/secondary-motion.js','content/authored-motion.js','content/vrm-animator.js'])await p.addScriptTag({url:base+'/'+f});
 await p.evaluate(async()=>{window.models=[];for(const[id,name]of [['s','seraphina'],['c','companion_alt']]){const a=new WaifuVrmAnimator(document.getElementById(id),{height:940});a.fetchModelBuffer=async()=>({buffer:await(await fetch('/assets/models/'+name+'.vrm')).arrayBuffer(),name,source:'bundled'});await a.preloadAll();a.stopLoop();a.draw=a.renderer.render.bind(a.renderer);a.renderer.render=()=>{};a.time=performance.now();a.lastFrameTime=a.time;models.push(a);}});
 const results=[];
 for(const pose of (process.env.REVIEW_POSES ? process.env.REVIEW_POSES.split(',') : ['idle','wave','think','tea','celebrate','walk']))for(let k=0;k<8;k++){

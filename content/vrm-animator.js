@@ -47,9 +47,11 @@
     "leftUpperLeg",
     "leftLowerLeg",
     "leftFoot",
+    "leftToes",
     "rightUpperLeg",
     "rightLowerLeg",
-    "rightFoot"
+    "rightFoot",
+    "rightToes"
   ];
 
   const EXTRA_PHYSICS_BONES = [
@@ -311,12 +313,15 @@
     }
 
     async prepareDance() {
+      if(this.isVrmModel){if(!this.authoredMotion)throw Error('3D animations are still loading');return 10;}
       if(!root.WAIFU_DANCE)throw Error('Reload the extension to load dance playback');
       this.dancePlayer??=new root.WAIFU_DANCE.SkeletonDance();
       return this.dancePlayer.prepare(this.modelKey);
     }
 
     _disposeCurrentModel() {
+      this.authoredMotion?.dispose();this.authoredMotion=null;
+      for(const skeleton of this.motionDressSkeletons||[])skeleton.dispose();this.motionDressSkeletons=[];
       this.dancePlayer?.release();this.behavior=null;
       this._poseHistory=null;this._supportRest=null;this._poseRootPosition=null;
       if(this._lookAtTargetObj){this.scene.remove(this._lookAtTargetObj);this._lookAtTargetObj=null;}
@@ -567,6 +572,8 @@
         vrm.lookAt.target = this._lookAtTargetObj;
       }
       this._headWorldY = safeH * 0.82;
+      if(vrm)this._fitDressSkinning();
+      if(vrm)this._createMotionLining();
       this._captureSupportRest();
       if (root.WaifuSecondaryMotion) {
         this.secondaryMotion = new root.WaifuSecondaryMotion(vrm, gltf, this.pivotGroup, {
@@ -581,7 +588,8 @@
       if (!this.loadPromise) {
         const generation = this.loadGeneration = (this.loadGeneration || 0) + 1;
         this.loadPromise = (async () => {
-          const payload = await this.fetchModelBuffer();
+          if(!root.WaifuAuthoredMotion)throw Error('Reload the extension to load authored 3D animations');
+          const [payload,motionBuffer] = await Promise.all([this.fetchModelBuffer(),root.WaifuAuthoredMotion.fetchBuffer(this.modelKey)]);
           const loader = createVrmGltfLoader();
           const gltf = await loader.parseAsync(payload.buffer, "");
           if (this.destroyed || generation !== this.loadGeneration) {
@@ -589,6 +597,11 @@
             return false;
           }
           this._setupRigFromGltf(gltf, { source: payload.source, name: payload.name });
+          if(this.isVrmModel){
+            const motion=await root.WaifuAuthoredMotion.create(this,motionBuffer);
+            if(this.destroyed||generation!==this.loadGeneration){motion.dispose();return false;}
+            this.authoredMotion=motion;
+          }
           this.renderFrame(performance.now());
           return true;
         })().catch((err) => {
@@ -939,6 +952,77 @@
       }
     }
 
+    _fitDressSkinning() {
+      this.motionDressFitCount=0;
+      if(this.modelKey!=='seraphina'||!this.vrm?.humanoid?.getRawBoneNode)return;
+      const names=['hips','leftUpperLeg','rightUpperLeg','leftLowerLeg','rightLowerLeg'];
+      const bones=names.map(name=>this.vrm.humanoid.getRawBoneNode(name));if(bones.some(b=>!b))return;
+      this.pivotGroup.updateWorldMatrix(true,true);
+      const point=new THREE.Vector3(),hips=this.pivotGroup.worldToLocal(bones[0].getWorldPosition(new THREE.Vector3())).y;
+      const knee=(this.pivotGroup.worldToLocal(bones[3].getWorldPosition(new THREE.Vector3())).y+this.pivotGroup.worldToLocal(bones[4].getWorldPosition(new THREE.Vector3())).y)*.5;
+      const inversePivot=new THREE.Matrix4().copy(this.pivotGroup.matrixWorld).invert();
+      this.modelRoot.traverse(mesh=>{
+        if(!mesh.isSkinnedMesh)return;
+        const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+        if(!materials.some(material=>['Tops_01_CLOTH_02','Tops_01_CLOTH_03','Seraphina_FlashGold'].some(key=>(material?.name||'').includes(key))))return;
+        const geometry=mesh.geometry.clone(),position=geometry.getAttribute('position'),skinWeight=geometry.getAttribute('skinWeight');let skinIndex=geometry.getAttribute('skinIndex');
+        if(!skinIndex||!skinWeight){geometry.dispose();return;}
+        // The imported garment palette can omit legs entirely because its old
+        // weights only referenced cloth joints. Extend a private palette while
+        // preserving the mesh's exact rest/bind transform and other meshes.
+        const missing=bones.filter(b=>!mesh.skeleton.bones.includes(b));
+        if(missing.length){
+          const jointList=mesh.skeleton.bones.slice(),inverses=mesh.skeleton.boneInverses.map(m=>m.clone());
+          const meshBind=new THREE.Matrix4().multiplyMatrices(mesh.matrixWorld,mesh.bindMatrix.clone().invert());
+          for(const bone of missing){jointList.push(bone);inverses.push(bone.matrixWorld.clone().invert().multiply(meshBind));}
+          mesh.skeleton=new THREE.Skeleton(jointList,inverses);(this.motionDressSkeletons??=[]).push(mesh.skeleton);
+        }
+        if(mesh.skeleton.bones.length>255&&skinIndex.array.BYTES_PER_ELEMENT===1){skinIndex=new THREE.Uint16BufferAttribute(Array.from(skinIndex.array),4);geometry.setAttribute('skinIndex',skinIndex);}
+        const palette=bones.map(b=>mesh.skeleton.bones.indexOf(b));
+        const transform=new THREE.Matrix4().multiplyMatrices(inversePivot,mesh.matrixWorld),index=geometry.getIndex();
+        const used=index?new Set(index.array):new Set(Array.from({length:position.count},(_,i)=>i));
+        for(const i of used){
+          point.fromBufferAttribute(position,i).applyMatrix4(transform);if(point.y>hips+.025*this.modelHeight)continue;
+          const follow=1-smooth01((point.y-(hips-.14*this.modelHeight))/(.165*this.modelHeight));
+          const calf=(1-smooth01((point.y-(knee-.1*this.modelHeight))/(.18*this.modelHeight)))*.45;
+          const left=smooth01((point.x+.03*this.modelHeight)/(.06*this.modelHeight));
+          const weights=[1-follow,follow*(1-calf)*left,follow*(1-calf)*(1-left),follow*calf*left,follow*calf*(1-left)];
+          const order=[0,1,2,3,4].sort((a,b)=>weights[b]-weights[a]).slice(0,4),sum=order.reduce((s,k)=>s+weights[k],0);
+          skinIndex.setXYZW(i,...order.map(k=>palette[k]));skinWeight.setXYZW(i,...order.map(k=>weights[k]/sum));
+        }
+        skinIndex.needsUpdate=skinWeight.needsUpdate=true;mesh.geometry=geometry;this.motionDressFitCount++;
+      });
+    }
+
+    _createMotionLining() {
+      // The repaired skin is continuous but the fitted garment has separate
+      // panels. A thin skinned fabric underlap covers panel gaps during bends.
+      // It shares the existing skin/skeleton; this is not a rigid torso shell.
+      const sources=[];this.motionLiningCount=0;
+      this.modelRoot.traverse(node=>{if(node.isSkinnedMesh&&node.name.includes('Repair_ContinuousTorso'))sources.push(node);});
+      const spine=this.boneMap.get('spine')?.node,chest=this.boneMap.get('upperChest')?.node||this.boneMap.get('chest')?.node;
+      if(!spine||!chest)return;
+      this.pivotGroup.updateWorldMatrix(true,true);
+      const low=this.pivotGroup.worldToLocal(spine.getWorldPosition(new THREE.Vector3())).y-.02*this.modelHeight;
+      const high=this.pivotGroup.worldToLocal(chest.getWorldPosition(new THREE.Vector3())).y+.025*this.modelHeight;
+      const inversePivot=new THREE.Matrix4().copy(this.pivotGroup.matrixWorld).invert(),point=new THREE.Vector3();
+      for(const source of sources){
+        const geometry=source.geometry.clone(),position=geometry.getAttribute('position'),heights=new Float32Array(position.count);
+        const toPivot=new THREE.Matrix4().multiplyMatrices(inversePivot,source.matrixWorld),toMesh=toPivot.clone().invert();
+        for(let i=0;i<position.count;i++){
+          point.fromBufferAttribute(position,i).applyMatrix4(toPivot);heights[i]=point.y;
+          point.x*=1.015;point.z*=1.015;point.applyMatrix4(toMesh);position.setXYZ(i,point.x,point.y,point.z);
+        }
+        const index=geometry.getIndex(),count=index?index.count:position.count,triangles=[];
+        for(let i=0;i<count;i+=3){const a=index?index.getX(i):i,b=index?index.getX(i+1):i+1,c=index?index.getX(i+2):i+2,y=(heights[a]+heights[b]+heights[c])/3;if(y>=low&&y<=high)triangles.push(a,b,c);}
+        if(!triangles.length){geometry.dispose();continue;}
+        geometry.setIndex(triangles);geometry.clearGroups();position.needsUpdate=true;geometry.computeVertexNormals();
+        const lining=source.clone(false);lining.name='Motion_FabricUnderlap';lining.geometry=geometry;
+        lining.material=new THREE.MeshStandardMaterial({color:this.modelKey==='seraphina'?0x1e1930:0x201923,roughness:.95,side:THREE.DoubleSide});
+        lining.frustumCulled=false;source.parent.add(lining);this.motionLiningCount++;
+      }
+    }
+
     _createGarden3D() {
       const group=new THREE.Group(),plant=new THREE.Group(),can=new THREE.Group(),h=this.modelHeight;
       const mat=color=>new THREE.MeshStandardMaterial({color,roughness:.8});
@@ -969,8 +1053,10 @@
       const g=this.garden3D;if(!g)return;g.group.visible=active;if(!active)return;
       const age=Math.max(0,(now-this.behavior.start)/1000),t=this.behavior.id==='showPlant'?13+age:age,end=Math.max(0,(this.behavior.until-now)/1000);
       g.pot.scale.setScalar(this.modelHeight*.075*smooth01(Math.min(age/.7,end/.7)));
-      const growth=smooth01((t-6)/5);g.plant.visible=growth>0;g.plant.scale.setScalar(Math.max(.001,growth));
-      const pour=smooth01((t-1)/.5)*smooth01((6-t)/.5),carry=smooth01(t/.8)*smooth01((7-t)/.8);
+      const authored=Boolean(this.authoredMotion);
+      const growth=smooth01((t-(authored?7.2:6))/(authored?4.6:5));g.plant.visible=growth>0;g.plant.scale.setScalar(Math.max(.001,growth));
+      const pour=authored?smooth01((t-3.4)/.5)*smooth01((6.9-t)/.5):smooth01((t-1)/.5)*smooth01((6-t)/.5);
+      const carry=authored?smooth01((t-1)/.5)*smooth01((7.2-t)/.5):smooth01(t/.8)*smooth01((7-t)/.8);
       g.can.visible=carry>.001;g.can.scale.setScalar(this.modelHeight*.065*carry);
       this.pivotGroup.updateWorldMatrix(true,true);
       const hand=this.boneMap.get('rightHand')?.node;
@@ -1000,6 +1086,8 @@
 
     renderFrame(now = performance.now()) {
       if (!this.renderer || this.webglFailed) return;
+      if(this.authoredMotion){this.authoredMotion.renderFrame(now);return;}
+      if(this.isVrmModel)return; // Never flash a legacy pose while native motion loads.
 
       const dt = clamp((now - this.lastFrameTime) * 0.001, 0.001, 0.1);
       this.lastFrameTime = now;

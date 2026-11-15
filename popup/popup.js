@@ -1050,7 +1050,7 @@
       await loadRuntimeScript("shared/dance-player.js");
       await loadRuntimeScript("content/animator.js");
       if (settings.renderMode === "3d" && !previewWebglFailed) {
-        for (const file of ["vendor/vrm-bundle.js", "content/secondary-motion.js", "content/vrm-animator.js"]) await loadRuntimeScript(file);
+        for (const file of ["vendor/vrm-bundle.js", "content/secondary-motion.js", "content/authored-motion.js", "content/vrm-animator.js"]) await loadRuntimeScript(file);
       }
       if (!previewRequested || popupClosed) return;
       WaifuMeshAnimator = window.WaifuMeshAnimator;

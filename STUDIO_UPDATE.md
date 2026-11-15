@@ -1,5 +1,13 @@
 # Companion polish update
 
+## 1.10.0 authored 3D motion replacement
+
+The native VRM models now use nine selected CC0 authored clips from Quaternius and KayKit across their twelve action paths. Complete quaternion poses replace the previous procedural stack and video-estimated native 3D dance. Whole-pose handoffs preserve the source elbow plane, wrist rotation, balance and finger gestures. The relaxed idle is adapted to the fitted clothes. Heel/toe support is fitted to each avatar offline; screen travel follows the measured walk stride. Standing watering uses an actual skeletal clip with staged 3D props and a presentation phase. Existing 2D artwork, dance and walking remain intact.
+
+The shipped libraries are 248,804 bytes (Seraphina) and 249,132 bytes (Crimson), with shared accessors and reduced keys. They load with the selected 3D model and require no remote service at runtime. Source pages, input hashes and CC0 licences are recorded under assets/animations/. Full rig checks explicitly reject calls into the old procedural clamp/IK path and verify that the authored joint rotations remain unaltered after handoff.
+
+Gardening uses standing watering rather than the unsuitable deep kneel. An opaque fabric underlap shares the continuous torso's existing skeleton and weights, covering panel gaps during bends without changing the character model files. Seraphina's lower gown and gold trim now follow the leg joints instead of detached cloth motion, keeping the rest shape intact. Native 3D startup waits for the authored library rather than flashing a legacy pose.
+
 ## 1.9.6 shared 3D animation repair
 
 Both 3D rigs now use a final pose conditioner for joint-speed limits, elbow/knee constraints, smooth transitions and support-height correction after the complete body pose. Walk reversals turn gradually; arm swing uses relaxed elbow flexion. Disabling animation settles static poses instead of freezing mid-walk. Analytic hand reaches repair waving, thinking, tea and crossed-arm reactions; fingers curl inward and the tea sip cycle is slower. Cached dances restart correctly.

@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><title>Source dance comparison</title>
+<html lang="en"><meta charset="utf-8"><title>2D and authored 3D dance</title>
 <style>
 body{margin:0;background:#262733;color:#eee;font:15px system-ui}header{padding:12px 20px}h1{font-size:20px;margin:0 0 8px}button,a{display:inline-block;margin:3px;padding:7px 12px;background:#eee;color:#222;border:0;border-radius:4px;text-decoration:none}input{width:280px;vertical-align:middle}main{display:flex;justify-content:center;gap:16px}section{text-align:center}h2{font-size:16px;margin:5px}canvas{display:block;background:#30313d;border:1px solid #555;border-radius:8px}#status{margin-left:10px}
 </style>
-<header><h1>Stabilized 3D dance comparison</h1>
+<header><h1>2D video and authored 3D dance</h1>
 <a href="?model=seraphina">Seraphina</a><a href="?model=gothic_red">Crimson</a>
 <button id="play">Play</button><button id="export">Save comparison</button><input id="seek" aria-label="Dance timestamp" type="range" min="0" max="9.95" value="3.5" step="0.05"><span id="status">Loading…</span>
 <div id="poses"></div></header>
-<main><section><h2>Actual 2D source</h2><canvas id="source" width="368" height="480"></canvas></section><section><h2>Retargeted 3D rig</h2><canvas id="rig"></canvas></section></main>
+<main><section><h2>Actual 2D source</h2><canvas id="source" width="368" height="480"></canvas></section><section><h2>Authored 3D choreography</h2><canvas id="rig"></canvas></section></main>
 <script>
 const model=new URLSearchParams(location.search).get('model')||'seraphina';
 window.chrome={runtime:{getURL:p=>'/'+p+'?reference=8'}};
 </script>
-<script src="/vendor/vrm-bundle.js"></script><script src="/shared/dance-player.js?reference=8"></script><script src="/content/secondary-motion.js"></script><script src="/content/vrm-animator.js?reference=8"></script>
+<script src="/vendor/vrm-bundle.js"></script><script src="/shared/dance-player.js?reference=8"></script><script src="/content/secondary-motion.js"></script><script src="/content/authored-motion.js?reference=200"></script><script src="/content/vrm-animator.js?reference=200"></script>
 <script>
 const status=document.querySelector('#status'),seek=document.querySelector('#seek'),play=document.querySelector('#play');
 const sprite=new WAIFU_DANCE.SpriteDance(),ctx=document.querySelector('#source').getContext('2d');
@@ -32,7 +32,7 @@ document.querySelector('#export').onclick=async()=>{
  if(!ready)return;running=false;play.textContent='Play';await show(seconds);
  const output=document.createElement('canvas');output.width=800;output.height=550;const painter=output.getContext('2d');
  painter.fillStyle='#30313d';painter.fillRect(0,0,800,550);painter.fillStyle='#eee';painter.font='18px system-ui';
- painter.fillText(model+' — '+seconds.toFixed(2)+' s',20,26);painter.font='15px system-ui';painter.fillText('Actual 2D source',20,51);painter.fillText('Retargeted 3D rig',420,51);
+ painter.fillText(model+' — '+seconds.toFixed(2)+' s',20,26);painter.font='15px system-ui';painter.fillText('Actual 2D source',20,51);painter.fillText('Authored 3D choreography',420,51);
  painter.drawImage(document.querySelector('#source'),16,62,368,480);painter.drawImage(document.querySelector('#rig'),416,62,368,480);
  const link=document.createElement('a');link.href=output.toDataURL('image/jpeg',.94);link.download=model+'-dance-comparison.jpg';link.textContent='Download comparison image';link.id='comparison-download';document.querySelector('#comparison-download')?.remove();document.body.append(link);const preview=document.querySelector('#comparison-image')||document.createElement('img');preview.id='comparison-image';preview.alt='Saved source and 3D dance comparison';preview.src=link.href;preview.style.cssText='display:block;max-width:800px;margin:16px auto';document.body.append(preview);
 };
