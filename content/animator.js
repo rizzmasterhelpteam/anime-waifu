@@ -412,7 +412,6 @@
     async setModelKey(modelKey) {
       const cleanKey = modelKey === "gothic_red" ? "gothic_red" : "seraphina";
       if (this.modelKey === cleanKey) return;
-      this.walkPlayer?.release();
       this.dancePlayer?.release();
       this.behavior=null;
       this.modelKey = cleanKey;
@@ -474,7 +473,6 @@
     }
 
     setWalking(active, dirX = 0, speedPx = this.displayHeight * 0.42) {
-      if(active&&root.WAIFU_DANCE?.WalkCycle){this.walkPlayer??=new root.WAIFU_DANCE.WalkCycle();this.walkPlayer.prepare(this.modelKey).catch(()=>{});}
       this.targetWalkSpeed = active ? Math.max(0, speedPx) : 0;
       const next = active ? 1 : 0;
       if (next === 1 && this.walkTarget === 0) {
@@ -549,7 +547,6 @@
     }
 
     destroy() {
-      this.walkPlayer?.release();
       this.dancePlayer?.release();
       this.destroyed = true;
       this.stopLoop();
@@ -666,8 +663,9 @@
       const padX = w * 0.055;
       const padTop = h * 0.04;
       const padBottom = h * 0.03;
-      const drawW = w - padX * 2;
-      const drawH = h - padTop - padBottom;
+      const sourceAspect = (activeImg.width || 460) / (activeImg.height || 600);
+      const drawH = Math.min(h - padTop - padBottom, (w - padX * 2) / sourceAspect);
+      const drawW = drawH * sourceAspect;
 
       const pivotX = w * 0.5;
       const pivotY = h - padBottom;
@@ -776,7 +774,7 @@
       }
 
       // Subtle 2.5D perspective depth tilt on canvas card when enabled (high precision, zero CSS transition fighting rAF)
-      if (this.microMotion && this.depth25D) {
+      if (this.microMotion && this.depth25D && this.walkAmount < .12) {
         const tiltY = (this.lookX * 3.0 + clamp(this.smoothDragLag * 0.4, -10, 10)).toFixed(3);
         const tiltX = (-this.lookY * 2.0).toFixed(3);
         const hoverScale = (1 + this.hoverBoost * 0.028).toFixed(5);
@@ -798,6 +796,9 @@
       const regX = (frame.offsetX / 460) * drawW;
       const regY = (frame.offsetY / 600) * drawH;
 
+      // Walk poses are immutable source drawings: no pixel morphing, perspective
+      // bending, squash/stretch or translucent cross-fades during locomotion.
+      if (this.walkAmount > .12) { scaleX = 1; scaleY = 1; }
       // Always draw at 100% full opacity so colors never wash out
       ctx.save();
       ctx.globalAlpha = 1;
@@ -806,9 +807,7 @@
       ctx.translate(pivotX + translateX + regX, pivotY + translateY + regY);
       ctx.rotate(rotRad);
       ctx.scale(frame.flipX ? -scaleX : scaleX, scaleY);
-      if(this.walkAmount>.12&&this.walkPlayer?.draw(ctx,this.walkPhase,-drawW*.5,-drawH,drawW,drawH)){
-        // Dense precomputed optical-flow cycle; no four-frame popping.
-      } else if (frame.key === "wave" && this.microMotion && (this.modelKey === "gothic_red" || this.modelKey === "crimson")) {
+      if (frame.key === "wave" && this.microMotion && (this.modelKey === "gothic_red" || this.modelKey === "crimson")) {
         this.drawCrimsonWave(ctx, activeImg, drawW, drawH, now);
       } else {
         ctx.drawImage(activeImg, -drawW * 0.5, -drawH, drawW, drawH);

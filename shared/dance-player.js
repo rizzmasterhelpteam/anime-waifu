@@ -4,17 +4,6 @@
  const url=p=>chrome.runtime.getURL(p);
  async function resource(path,type){const r=await fetch(url(path),{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('Dance asset unavailable: '+path);return type==='json'?r.json():r.arrayBuffer();}
  const weight=(elapsed,duration)=>Math.max(0,Math.min(1,elapsed/.25,(duration-elapsed)/.25));
- class WalkCycle{
-  async prepare(model){
-   model=canonical(model);if(this.model===model&&this.image)return;
-   if(this.pending&&this.model===model)return this.pending;
-   this.release();this.model=model;const generation=this.generation;
-   this.pending=(async()=>{const data=await resource('assets/animations/'+model+'/walk.webp');const image=await createImageBitmap(new Blob([data],{type:'image/webp'}));if(this.generation!==generation){image.close();return;}this.image=image;})().finally(()=>{if(this.generation===generation)this.pending=null;});
-   return this.pending;
-  }
-  draw(ctx,phase,x,y,w,h){if(!this.image)return false;const frame=Math.floor(((phase/(Math.PI*2))%1+1)%1*24);ctx.drawImage(this.image,frame%6*320,Math.floor(frame/6)*420,320,420,x,y,w,h);return true;}
-  release(){this.generation=(this.generation||0)+1;this.image?.close();this.image=null;this.model=null;this.pending=null;}
- }
  class SpriteDance {
   constructor(){this.pages=new Map();this.pending=new Map();this.generation=0;this.meta=null;this.model=null;}
   async prepare(key){
@@ -79,5 +68,5 @@
   }
   release(){this.generation++;this.mixer?.stopAllAction();if(this.scene)this.mixer?.uncacheRoot(this.scene);this.scene=null;this.model=null;this.faceCues=null;this.targets?.clear();}
  }
- root.WAIFU_DANCE={SpriteDance,SkeletonDance,WalkCycle,weight};
+ root.WAIFU_DANCE={SpriteDance,SkeletonDance,weight};
 })(globalThis);

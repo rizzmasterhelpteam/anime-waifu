@@ -31,7 +31,9 @@ Rebuilding every unsuitable shot as a separate 2D clip would add redundant asset
 
 ## Walking and gardening
 
-`pipeline/smooth_walk_frames.py` builds 24 registered 320x420 walk frames from each character's four original side-view poses. Bidirectional DIS optical flow warps premultiplied RGBA images offline. Each intermediate uses one warped source instead of cross-fading silhouettes, avoiding doubled limbs. One transparent 1920x1680 WebP atlas per character loads on the first walk (about 12.3 MiB decoded). The runtime draws this cycle at a speed-related cadence with 60 Hz transform updates. This improves continuity within the existing artwork; optical-flow warping can still distort small details and is not a newly hand-drawn rig.
+2D walking draws the four registered original 460x600 PNG poses directly: contact, pass, opposite contact, opposite pass. The sprite aspect ratio stays fixed, with full opacity and rigid transforms. Screen movement updates at 60 Hz; each complete pose is selected at the speed-related gait cadence. Perspective bending and nonuniform scaling are disabled during locomotion. The cycle contains four drawn poses; additional drawn poses are needed for finer leg animation.
+
+The old optical-flow atlas, loader and builder have been removed because inferred frames warped the dress and limbs. Walking reuses already-loaded sprites, eliminating the additional atlas download and roughly 12.3 MiB decoded cache per active character.
 
 3D walking separates planted stance (56% of a cycle) and swing (44%), with bounded foot clearance, heel/toe roll, narrow inward steps and restrained arm swing. IK uses the avatar's measured leg segments. Full-viewport movement remains handled by the existing two-axis path scheduler.
 
@@ -42,8 +44,7 @@ Gardening runs for 16 seconds: soil/pot appears first, watering runs from 1-6 s,
 - `python pipeline/process_dance_videos.py <source-folder>` requires Python, NumPy, Pillow, imageio and imageio-ffmpeg. It generates atlases and per-character manifests, leaving the videos untouched.
 - `python pipeline/retarget_dance_clips.py` (or the compatibility entry point `author_dance_clips.py`) regenerates both GLBs from committed landmark data and the shipped VRMs. Requires NumPy, SciPy, Pillow and OpenCV.
 - To re-extract the original sources, run `process_dance_videos.py` first, download the [official MediaPipe heavy model](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task) into ignored `work/pose-tracking/pose_landmarker_heavy.task`, run `python pipeline/track_dance_video.py`, then `python pipeline/retarget_dance_clips.py --import-tracking`. This additionally requires MediaPipe; inference weights remain outside the extension.
-- `python pipeline/smooth_walk_frames.py` requires NumPy, Pillow and opencv-python-headless; it regenerates both walk atlases.
-- `npm run test:motion` verifies soil/water/growth/reveal order, cancellation, bounded gardening bend, planted stance and swing clearance.
+- `npm run test:motion` verifies soil/water/growth/reveal order, cancellation, bounded gardening bend, planted stance and swing clearance. It also runs the production 2D renderer across both characters, both directions and three sizes, checking complete source poses, aspect ratio, opacity and rigid scaling.
 - `npm run test:dance` parses both GLBs with the shipped loader, checks distinct source phrases at matching timestamps, full turns, sole orientation, support contact, finger/wink cues and cleanup. It also runs all 2D atlas page transitions and verifies the decoded cache bound.
 - `npm run test:behavior` checks personality timing and mode/control regressions.
 

@@ -17,10 +17,6 @@ vm.runInThisContext(fs.readFileSync(path.join(root,'shared/dance-player.js'),'ut
    await Promise.all([...sprite.pending.values()]);assert(sprite.pages.size<=2);
   }
   sprite.release();assert.equal(sprite.pages.size,0);
-  const walk=new WAIFU_DANCE.WalkCycle();await walk.prepare(model);const cells=new Set();
-  const walkContext={drawImage:(...args)=>cells.add(args[1]+','+args[2])};
-  for(let i=0;i<24;i++)assert(walk.draw(walkContext,(i+.1)/24*Math.PI*2,0,0,320,420));
-  assert.equal(cells.size,24);walk.release();
   const skeleton=new WAIFU_DANCE.SkeletonDance();assert.equal(await skeleton.prepare(model),10);
   const T=WAIFU_VRM_VENDOR.THREE,boneMap=new Map();for(const key of ['hips','leftUpperArm','leftUpperLeg','head'])boneMap.set(key,{node:new T.Object3D()});
   let updates=0;
