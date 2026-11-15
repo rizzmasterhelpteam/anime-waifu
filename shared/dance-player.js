@@ -33,7 +33,7 @@
  class SkeletonDance {
   constructor(){this.model=null;this.scene=null;this.generation=0;}
   async prepare(key){
-   key=canonical(key);if(this.model===key&&this.scene)return this.duration;
+   key=canonical(key);if(this.model===key&&this.scene){this.action.reset().play();return this.duration;}
    this.release();const generation=this.generation,V=root.WAIFU_VRM_VENDOR,T=V.THREE;
    const buffer=await resource('assets/animations/'+key+'/dance-natural.glb');
    const gltf=await new Promise((resolve,reject)=>new V.GLTFLoader().parse(buffer,'',resolve,reject));

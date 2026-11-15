@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.5**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.6**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -22,7 +22,9 @@ Only Calm and Playful appear in the dashboard and character toolbar. Mode select
 
 2D walking uses the four clean, registered source poses with 60 Hz movement. Original bitmap proportions and full opacity stay fixed while walking. 3D walking uses planted stance/swing IK, restrained heel-to-toe roll, a narrow catwalk stance and counterbalanced hips/shoulders. Each 3D dance uses its own 2D clip as a timing reference, with conditioned weight shifts, steps, hand gestures and timed winks. Unstable spins become gentle turns; constrained joints, bounded rotation speeds and smooth entry/exit prevent abrupt twisting. Clips are 43–52% smaller and use cached quaternion playback. Adult rig proportions are preserved. Inferred depth and hidden joints remain approximate.
 
-See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for dance sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup; `npm run test:motion` checks garden staging, bounded bending and walk contact/clearance.
+All 3D actions share joint smoothing, rotation-speed limits, elbow/knee constraints and support-height correction. Hand IK drives waving, thinking, tea, crossed-arm pouting and gardening. The 3D gardening can follows the hand, pours into a real 3D pot, then gives way to staged plant growth and a presentation gesture. Static mode settles cleanly; direction reversals and action interruptions blend smoothly.
+
+See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup; `npm run test:motion` checks full rig motion across all 12 actions on both measured rigs, gardening, static poses, cancellation and 2D walk stability.
 
 ## Install
 1. Clone or download this repository.

@@ -520,9 +520,10 @@
       stopStroll();
     }
     const crimson=settings.activeModel==='gothic_red';
+    const is3D=Boolean(WaifuVrmAnimator&&instance instanceof WaifuVrmAnimator);
     const duration={garden:16000,dance:11000,pout:8500,rest:16000,sidestep:6000,showPlant:6500,greet:3200,relax:6500}[id]||6000;
     const actualDuration=id==='dance'?danceDuration*1000:duration;
-    const pose=id==='greet'?'wave':id==='dance'?'idle':id==='rest'?'tea':id==='pout'?'think':'idle';
+    const pose=id==='greet'?'wave':id==='rest'?'tea':id==='pout'&&!is3D?'think':'idle';
     const lines=personalityLines[crimson?'gothic_red':'seraphina'][id];
     const canChat=manual||(!isUserTypingNow()&&performance.now()-lastBehaviorBubble>30000);
     const quote=lines&&canChat&&id!=='garden'?lines[Math.floor(Math.random()*lines.length)]:null;
@@ -533,10 +534,10 @@
     gardenSequence?.stop();
     if(id==='garden'&&gardenSequence){
       gardenSequence.start(()=>{
-        if(instance!==animator||animator.behavior?.id!=='garden'||settings.interactionFrequency==='quiet'||document.hidden)return;
+        if(request!==behaviorRequest||instance!==animator||animator.behavior?.id!=='garden'||performance.now()>=animator.behavior.until||settings.interactionFrequency==='quiet'||document.hidden)return;
         animator.setPointerLook?.(0,0,0,0);
         showBubble(crimson?"Look! I grew this! Pretty impressive, right?":"A little care goes a long way. Look what we grew.",3500);
-      });
+      },{visual:!is3D});
     }
     behaviorPropTimer=setTimeout(()=>{
       if(behaviorProp)behaviorProp.hidden=true;

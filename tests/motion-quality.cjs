@@ -9,6 +9,9 @@ frame(3000);assert.equal(nodes.get('[data-can]').style.opacity,'1');assert.equal
 frame(7000);assert(nodes.get('[data-plant]').transform.includes('scale(0.2)'));assert.equal(nodes.get('[data-can]').style.opacity,'0');
 frame(11000);assert(nodes.get('[data-plant]').transform.includes('scale(1)'));assert.equal(celebrations,0);
 frame(13000);assert.equal(celebrations,1);frame(14000);assert.equal(celebrations,1);garden.stop();assert.equal(container.hidden,true);frame(15000);assert.equal(celebrations,1);
+let revealTimer,cleared=0;scope.setTimeout=(fn,ms)=>{assert.equal(ms,13000);revealTimer=fn;return 9;};scope.clearTimeout=id=>{assert.equal(id,9);cleared++;};
+garden.start(()=>celebrations++,{visual:false});assert.equal(garden.raf,null);assert.equal(container.hidden,true,'3D gardening must not run a hidden SVG animation');garden.stop();revealTimer();assert.equal(celebrations,1,'Cancelled 3D gardening must not speak later');assert.equal(cleared,1);
+garden.start(()=>celebrations++,{visual:false});revealTimer();assert.equal(celebrations,2);garden.stop();
 vm.runInContext(fs.readFileSync(path.join(root,'shared/defaults.js'),'utf8'),scope);
 for(let ms=0;ms<=16000;ms+=50){
  const motion=scope.WAIFU_SHARED.behaviorMotion({id:'garden',start:0,until:16000},ms);

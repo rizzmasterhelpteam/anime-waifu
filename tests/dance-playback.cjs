@@ -41,6 +41,7 @@ vm.runInThisContext(fs.readFileSync(path.join(root,'shared/dance-player.js'),'ut
   let maxTravel=0,maxKnee=0;
   for(let t=0;t<10;t+=.1){skeleton.mixer.setTime(t);maxTravel=Math.max(maxTravel,Math.abs(skeleton.targets.get('root').position.x));const e=new T.Euler().setFromQuaternion(skeleton.targets.get('leftLowerLeg').quaternion);maxKnee=Math.max(maxKnee,e.x);}
   assert(maxTravel>.09,'Dance must translate the pelvis during steps');assert(maxKnee>.3,'Dance must include actual knee-driven steps');
+  skeleton.mixer.setTime(10);await skeleton.prepare(model);skeleton.mixer.setTime(2.3);assert(skeleton.targets.get('leftUpperArm').quaternion.angleTo(new T.Quaternion())>.4,'A completed cached dance must play again');
   skeleton.release();assert.equal(skeleton.bindings,null);assert.equal(skeleton.boundAnimator,null);
  }
  assert.equal(decoded,closed,'All decoded image pages must be released');

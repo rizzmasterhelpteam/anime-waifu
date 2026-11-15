@@ -1,5 +1,11 @@
 # Companion polish update
 
+## 1.9.6 shared 3D animation repair
+
+Both 3D rigs now use a final pose conditioner for joint-speed limits, elbow/knee constraints, smooth transitions and support-height correction after the complete body pose. Walk reversals turn gradually; arm swing uses relaxed elbow flexion. Disabling animation settles static poses instead of freezing mid-walk. Analytic hand reaches repair waving, thinking, tea and crossed-arm reactions; fingers curl inward and the tea sip cycle is slower. Cached dances restart correctly.
+
+3D gardening now has a hand-following can, stream directed into a 3D pot, staged growth and a final presentation gesture. It reuses on-demand geometry and omits the hidden 2D SVG loop. Cancellation clears props and reveal timers; model changes dispose garden resources and look targets. Full rig tests cover all 12 action paths on both measured rigs, alongside the existing motion/behavior/dance checks. Both actual clothed VRMs were reviewed in the new action comparison fixture.
+
 ## 1.9.5 dance repair
 
 Both 3D dance clips now repair the source tracker's limb flips and replace unstable full spins with modest turns. Joint constraints, rotation-speed limits, level soles and support-height correction keep movement composed. Playback uses a 600 ms eased transition, cached rig bindings and direct normalized VRM quaternions. Key reduction shrinks the clips by 43–52%. Both actual VRM previews were reviewed; automated checks cover joint speeds, knee hinges, support contact, fades, bindings and cleanup.

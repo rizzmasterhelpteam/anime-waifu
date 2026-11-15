@@ -15,6 +15,7 @@
   function damp(cur, target, lambda, dt) {
     return cur + (target - cur) * (1 - Math.exp(-lambda * dt));
   }
+  function smooth01(v) {v=clamp(v,0,1);return v*v*(3-2*v);}
 
   function base64ToArrayBuffer(b64) {
     const bin = atob(b64);
@@ -233,10 +234,6 @@
       this._tmpDeltaQ = new THREE.Quaternion();
       this._tmpConjQ = new THREE.Quaternion();
       this._lookTargetVec = new THREE.Vector3(0, 1.1, 2.5);
-      this._armIk = {
-        points: Array.from({ length: 10 }, () => new THREE.Vector3()),
-        parentQ: new THREE.Quaternion(), targetQ: new THREE.Quaternion()
-      };
 
       this._onContextLost = (e) => {
         e.preventDefault();
@@ -321,6 +318,15 @@
 
     _disposeCurrentModel() {
       this.dancePlayer?.release();this.behavior=null;
+      this._poseHistory=null;this._supportRest=null;this._poseRootPosition=null;
+      if(this._lookAtTargetObj){this.scene.remove(this._lookAtTargetObj);this._lookAtTargetObj=null;}
+      if(this.garden3D){
+        this.pivotGroup.remove(this.garden3D.group);
+        const geometries=new Set(),materials=new Set();
+        this.garden3D.group.traverse(n=>{if(n.geometry)geometries.add(n.geometry);if(n.material)materials.add(n.material);});
+        for(const g of geometries)g.dispose();for(const m of materials)m.dispose();
+        this.garden3D=null;
+      }
       this.secondaryMotion?.dispose();
       this.secondaryMotion = null;
       if (this.modelRoot && this.pivotGroup) {
@@ -561,6 +567,7 @@
         vrm.lookAt.target = this._lookAtTargetObj;
       }
       this._headWorldY = safeH * 0.82;
+      this._captureSupportRest();
       if (root.WaifuSecondaryMotion) {
         this.secondaryMotion = new root.WaifuSecondaryMotion(vrm, gltf, this.pivotGroup, {
           height: safeH, enabled: this.physicsEnabled,
@@ -848,64 +855,130 @@
     }
 
     _solveRightArm(thinkWeight, teaWeight) {
-      const weight = clamp(thinkWeight + teaWeight, 0, 1);
-      // A relaxed grip keeps the tea and thinking poses from using a rigid open palm.
-      for (const finger of ["Index", "Middle", "Ring", "Little"]) {
-        for (const segment of ["Proximal", "Intermediate", "Distal"]) {
-          const node = this.vrm?.humanoid?.getNormalizedBoneNode("right" + finger + segment);
-          if (node) node.rotation.z = weight * (segment === "Proximal" ? 0.62 : 0.82);
+      const weight=clamp(thinkWeight+teaWeight,0,1);
+      if(weight<.001)return;
+      const tea=teaWeight/weight,h=this.modelHeight,sip=this.sipBlend;
+      // Keep both reach targets in front of the chest, clear of the face.
+      this._reachHand('right',-h*(.075*(1-tea)+(.12-sip*.045)*tea),
+        h*(.77*(1-tea)+(.60+sip*.15)*tea),h*(.14*(1-tea)+(.21-sip*.11)*tea),weight,.95*(1-tea)+.3*tea,-.8*(1-tea));
+    }
+
+    _captureSupportRest() {
+      this.pivotGroup.updateWorldMatrix(true,true);
+      this._supportRest={};
+      for(const side of ['left','right']){
+        const foot=this.boneMap.get(side+'Foot')?.node;
+        if(foot){const p=foot.getWorldPosition(new THREE.Vector3());this.pivotGroup.parent.worldToLocal(p);this._supportRest[side]=p.y;}
+      }
+      this._poseHistory=null;this._poseRootPosition=null;
+    }
+
+    // Analytic elbow plane: the shoulder owns arm twist, the elbow is a hinge.
+    // Targets are in avatar space, so reaching remains correct during user orbit.
+    _reachHand(side, x, y, z, weight, grip=0, wristTilt=0, wristRoll=0) {
+      if(weight<.001||!this.isVrmModel)return;
+      const upper=this.boneMap.get(side+'UpperArm')?.node,lower=this.boneMap.get(side+'LowerArm')?.node,hand=this.boneMap.get(side+'Hand')?.node;
+      if(!upper||!lower||!hand)return;
+      const k=this._reachScratch??={a:new THREE.Vector3(),b:new THREE.Vector3(),c:new THREE.Vector3(),target:new THREE.Vector3(),dir:new THREE.Vector3(),hint:new THREE.Vector3(),elbow:new THREE.Vector3(),u:new THREE.Vector3(),v:new THREE.Vector3(),normal:new THREE.Vector3(),axisX:new THREE.Vector3(),axisY:new THREE.Vector3(),matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),parent:new THREE.Quaternion()};
+      this.pivotGroup.updateWorldMatrix(true,true);
+      upper.getWorldPosition(k.a);lower.getWorldPosition(k.b);hand.getWorldPosition(k.c);
+      const l1=k.a.distanceTo(k.b),l2=k.b.distanceTo(k.c),sign=side==='left'?1:-1;
+      k.target.set(x,y,z);this.pivotGroup.localToWorld(k.target);
+      k.dir.copy(k.target).sub(k.a);
+      const near=Math.sqrt(l1*l1+l2*l2+2*l1*l2*Math.cos(2.15)),far=(l1+l2)*.985;
+      const distance=clamp(k.dir.length(),near,far);k.dir.normalize();k.target.copy(k.a).addScaledVector(k.dir,distance);
+      const along=(l1*l1-l2*l2+distance*distance)/(2*distance),radius=Math.sqrt(Math.max(0,l1*l1-along*along));
+      k.hint.set(sign*.65,-.7,-.25).transformDirection(this.pivotGroup.matrixWorld);
+      k.hint.addScaledVector(k.dir,-k.hint.dot(k.dir)).normalize();
+      k.elbow.copy(k.a).addScaledVector(k.dir,along).addScaledVector(k.hint,radius);
+      k.u.copy(k.elbow).sub(k.a).normalize();k.v.copy(k.target).sub(k.elbow).normalize();
+      k.axisX.copy(k.u).multiplyScalar(sign);k.normal.crossVectors(k.u,k.v).normalize().multiplyScalar(sign);k.axisY.crossVectors(k.normal,k.axisX).normalize();
+      k.matrix.makeBasis(k.axisX,k.axisY,k.normal);k.q.setFromRotationMatrix(k.matrix);
+      upper.parent.getWorldQuaternion(k.parent).invert();k.q.premultiply(k.parent);upper.quaternion.slerp(k.q,weight);
+      const bend=Math.acos(clamp(k.u.dot(k.v),-1,1));k.q.setFromAxisAngle(k.normal.set(0,0,1),sign*bend);lower.quaternion.slerp(k.q,weight);
+      this.pivotGroup.updateWorldMatrix(true,true);
+      hand.parent.getWorldQuaternion(k.parent).invert();this.pivotGroup.getWorldQuaternion(k.q);k.q.premultiply(k.parent);k.q.multiply(k.parent.setFromAxisAngle(k.normal.set(0,0,1),wristTilt));k.q.multiply(k.parent.setFromAxisAngle(k.normal.set(1,0,0),wristRoll));hand.quaternion.slerp(k.q,weight);
+      for(const finger of ['Index','Middle','Ring','Little'])for(const joint of ['Proximal','Intermediate','Distal']){
+        const record=this.boneMap.get(side+finger+joint);if(record){k.q.setFromAxisAngle(k.normal.set(0,0,1),-sign*grip);record.node.quaternion.slerp(k.q,weight);}
+      }
+      for(const joint of ['Metacarpal','Proximal','Distal']){const record=this.boneMap.get(side+'Thumb'+joint);if(record){k.q.setFromAxisAngle(k.normal.set(0,0,1),-sign*grip*.25);record.node.quaternion.slerp(k.q,weight);}}
+    }
+
+    _stabilizePose(dt) {
+      const history=this._poseHistory??=new Map(),q=this._poseScratchQ??=new THREE.Quaternion(),e=this._poseScratchEuler??=new THREE.Euler();
+      const alpha=this.microMotion?1-Math.exp(-18*dt):1;
+      for(const [key,rec]of this.boneMap){
+        if(!rec.isNormalizedVrm||key.endsWith('Eye'))continue;
+        if(key.endsWith('LowerArm')){
+          q.copy(rec.restLocalQ).invert().multiply(rec.node.quaternion);e.setFromQuaternion(q,'XYZ');
+          e.set(0,0,(key.startsWith('left')?1:-1)*clamp(Math.abs(e.z),.06,2.15));
+          rec.node.quaternion.copy(rec.restLocalQ).multiply(q.setFromEuler(e));
+        }
+        if(key.endsWith('LowerLeg')){
+          q.copy(rec.restLocalQ).invert().multiply(rec.node.quaternion);e.setFromQuaternion(q,'XYZ');
+          rec.node.quaternion.copy(rec.restLocalQ).multiply(q.setFromEuler(e.set(clamp(e.x,.015,.85),0,0)));
+        }
+        let previous=history.get(key);
+        if(!previous){previous=rec.node.quaternion.clone();history.set(key,previous);}
+        const angle=previous.angleTo(rec.node.quaternion),rate=/Arm|Hand/.test(key)?4.2:/Leg|Foot/.test(key)?5:2.8;
+        previous.slerp(rec.node.quaternion,this.microMotion?Math.min(alpha,angle>1e-6?rate*dt/angle:1):1);rec.node.quaternion.copy(previous);
+      }
+      // Keep root offsets continuous when an action is cancelled or replaced.
+      this._poseRootPosition??=this.pivotGroup.position.clone();
+      this._poseRootPosition.lerp(this.pivotGroup.position,alpha);this.pivotGroup.position.copy(this._poseRootPosition);
+      // Correct the actual chained pose, not just an isolated leg IK solution.
+      const hips=this.boneMap.get('hips')?.node;
+      if(hips&&this._supportRest){
+        this.pivotGroup.updateWorldMatrix(true,true);
+        const p=this._supportPoint??=new THREE.Vector3();let error=Infinity;
+        for(const side of ['left','right']){const foot=this.boneMap.get(side+'Foot')?.node;if(foot){foot.getWorldPosition(p);this.pivotGroup.parent.worldToLocal(p);error=Math.min(error,p.y-this._supportRest[side]);}}
+        if(Number.isFinite(error)){
+          p.set(0,clamp(-error,-this.modelHeight*.2,this.modelHeight*.2),0);
+          this.pivotGroup.parent.getWorldQuaternion(q);p.applyQuaternion(q);hips.parent.getWorldQuaternion(q).invert();p.applyQuaternion(q);hips.position.add(p);
         }
       }
-      if (weight < 0.001 || !this.isVrmModel) return;
-      const upper = this.boneMap.get("rightUpperArm")?.node;
-      const lower = this.boneMap.get("rightLowerArm")?.node;
-      const hand = this.boneMap.get("rightHand")?.node;
-      const head = this.boneMap.get("head")?.node;
-      if (!upper || !lower || !hand || !head) return;
-      const ik = this._armIk;
-      const [a, b, c, target, dir, hint, elbow, axis, localDir, delta] = ik.points;
-      this.pivotGroup.updateWorldMatrix(true, true);
-      upper.getWorldPosition(a); lower.getWorldPosition(b); hand.getWorldPosition(c);
-      const l1 = a.distanceTo(b), l2 = b.distanceTo(c);
-      head.getWorldPosition(target); this.pivotGroup.worldToLocal(target);
-      const h = this.modelHeight;
-      const tea = teaWeight / weight;
-      const sip = this.sipBlend;
-      target.x -= h * (0.045 * (1 - tea) + (0.09 - sip * 0.05) * tea);
-      if (this.isChibiRig) {
-        // Reach in front of the enlarged face, with the hand raised toward the chin when thinking.
-        target.y += h * (0.05 * (1 - tea) + (-0.06 + sip * 0.11) * tea);
-        target.z += h * (0.23 * (1 - tea) + (0.20 + sip * 0.06) * tea);
-      } else {
-        target.y -= h * (0.075 * (1 - tea) + (0.18 - sip * 0.10) * tea);
-        target.z += h * (0.09 * (1 - tea) + (0.14 - sip * 0.03) * tea);
-      }
-      this.pivotGroup.localToWorld(target);
-      dir.copy(target).sub(a);
-      const distance = clamp(dir.length(), Math.abs(l1 - l2) + 0.001, (l1 + l2) * 0.97);
-      dir.normalize(); target.copy(a).addScaledVector(dir, distance);
-      const along = (l1 * l1 - l2 * l2 + distance * distance) / (2 * distance);
-      const radius = Math.sqrt(Math.max(0, l1 * l1 - along * along));
-      hint.set(-0.3, -0.6, 0.5).transformDirection(this.pivotGroup.matrixWorld);
-      hint.addScaledVector(dir, -hint.dot(dir)).normalize();
-      elbow.copy(a).addScaledVector(dir, along).addScaledVector(hint, radius);
-      const aim = (node, child, from, to) => {
-        axis.copy(child.position).normalize();
-        node.parent.getWorldQuaternion(ik.parentQ).invert();
-        localDir.copy(to).sub(from).normalize().applyQuaternion(ik.parentQ);
-        ik.targetQ.setFromUnitVectors(axis, localDir);
-        node.quaternion.slerp(ik.targetQ, weight);
-        node.updateWorldMatrix(false, true);
-      };
-      aim(upper, lower, a, elbow);
-      lower.getWorldPosition(b);
-      aim(lower, hand, b, target);
-      // Hold the saucer level in avatar space, including while turning.
-      hand.parent.getWorldQuaternion(ik.parentQ).invert();
-      this.pivotGroup.getWorldQuaternion(ik.targetQ);
-      ik.targetQ.premultiply(ik.parentQ);
-      hand.quaternion.slerp(ik.targetQ, weight);
+    }
 
+    _createGarden3D() {
+      const group=new THREE.Group(),plant=new THREE.Group(),can=new THREE.Group(),h=this.modelHeight;
+      const mat=color=>new THREE.MeshStandardMaterial({color,roughness:.8});
+      const clay=mat(0xb87354),soil=mat(0x493126),green=mat(0x70aa60),metal=mat(0x78a8b6),water=mat(0x87d2f4),petal=mat(this.modelKey==='gothic_red'?0xc85c7b:0xdca9dd);
+      const mesh=(geometry,material,parent,x=0,y=0,z=0)=>{const n=new THREE.Mesh(geometry,material);n.position.set(x,y,z);parent.add(n);return n;};
+      const pot=new THREE.Group();group.add(pot);pot.position.set(-h*.22,h*.005,h*.17);pot.scale.setScalar(h*.075);
+      mesh(new THREE.CylinderGeometry(.8,.58,1.05,16),clay,pot,0,.525);
+      mesh(new THREE.TorusGeometry(.78,.09,6,20),clay,pot,0,1.05).rotation.x=Math.PI/2;
+      mesh(new THREE.CylinderGeometry(.71,.71,.04,16),soil,pot,0,1.03);
+      pot.add(plant);plant.position.y=1.07;
+      mesh(new THREE.CylinderGeometry(.035,.05,1.7,6),green,plant,0,.85);
+      const leafGeometry=new THREE.SphereGeometry(1,8,6);
+      for(let i=0;i<4;i++){const sign=i%2?1:-1,n=mesh(leafGeometry,green,plant,sign*.25,.4+i*.3);n.scale.set(.4,.1,.17);n.rotation.z=sign*.4;}
+      for(let i=0;i<5;i++){const a=i/5*Math.PI*2,n=mesh(leafGeometry,petal,plant,Math.cos(a)*.14,1.75+Math.sin(a)*.14);n.scale.set(.15,.13,.07);}
+      group.add(can);can.scale.setScalar(h*.065);
+      mesh(new THREE.CylinderGeometry(.58,.52,.85,12),metal,can,0,-.48);
+      const handle=mesh(new THREE.TorusGeometry(.4,.075,6,16),metal,can,0,.02);handle.rotation.x=Math.PI/2;
+      const spout=mesh(new THREE.CylinderGeometry(.09,.16,1.0,8),metal,can,-.78,-.3);spout.rotation.z=-1.0;
+      const tip=new THREE.Object3D();tip.position.set(-1.22,-.02,0);can.add(tip);
+      const stream=mesh(new THREE.CylinderGeometry(.003,.004,1,6),water,group);stream.visible=false;
+      group.visible=false;this.pivotGroup.add(group);
+      this.garden3D={group,pot,plant,can,tip,stream,point:new THREE.Vector3(),target:new THREE.Vector3(),direction:new THREE.Vector3(),up:new THREE.Vector3(0,1,0)};
+    }
+
+    _updateGarden3D(now) {
+      const active=this.microMotion&&['garden','showPlant'].includes(this.behavior?.id)&&now<this.behavior.until;
+      if(active&&!this.garden3D)this._createGarden3D();
+      const g=this.garden3D;if(!g)return;g.group.visible=active;if(!active)return;
+      const age=Math.max(0,(now-this.behavior.start)/1000),t=this.behavior.id==='showPlant'?13+age:age,end=Math.max(0,(this.behavior.until-now)/1000);
+      g.pot.scale.setScalar(this.modelHeight*.075*smooth01(Math.min(age/.7,end/.7)));
+      const growth=smooth01((t-6)/5);g.plant.visible=growth>0;g.plant.scale.setScalar(Math.max(.001,growth));
+      const pour=smooth01((t-1)/.5)*smooth01((6-t)/.5),carry=smooth01(t/.8)*smooth01((7-t)/.8);
+      g.can.visible=carry>.001;g.can.scale.setScalar(this.modelHeight*.065*carry);
+      this.pivotGroup.updateWorldMatrix(true,true);
+      const hand=this.boneMap.get('rightHand')?.node;
+      if(hand){hand.getWorldPosition(g.point);this.pivotGroup.worldToLocal(g.point);g.can.position.copy(g.point);g.can.rotation.z=.32*pour;}
+      this.pivotGroup.updateWorldMatrix(true,true);g.tip.getWorldPosition(g.point);this.pivotGroup.worldToLocal(g.point);
+      g.target.copy(g.pot.position);g.target.y+=this.modelHeight*.078;
+      g.direction.copy(g.target).sub(g.point);g.stream.visible=pour>.1;
+      g.stream.position.copy(g.point).add(g.target).multiplyScalar(.5);g.stream.scale.y=g.direction.length();g.stream.quaternion.setFromUnitVectors(g.up,g.direction.normalize());
     }
 
     _applyExpression(name, val) {
@@ -930,7 +1003,7 @@
 
       const dt = clamp((now - this.lastFrameTime) * 0.001, 0.001, 0.1);
       this.lastFrameTime = now;
-      const t = (now - this.startTime) * 0.001;
+      const t = this.microMotion?(now - this.startTime) * 0.001:0;
 
       if (!this.modelRoot) {
         this.renderer.render(this.scene, this.camera);
@@ -940,11 +1013,12 @@
       // Smoothly crossfade pose weights
       for (const key of Object.keys(this.poseWeights)) {
         const targetW = key === this.currentPose ? 1 : 0;
-        this.poseWeights[key] = damp(this.poseWeights[key], targetW, 5.5, dt);
+        this.poseWeights[key] = this.microMotion?damp(this.poseWeights[key], targetW, 5.5, dt):targetW;
       }
 
       this.walkSpeed = damp(this.walkSpeed, this.targetWalkSpeed, 10, dt);
       this.walkAmount = damp(this.walkAmount, this.walkTarget && this.microMotion ? clamp(this.walkSpeed / 16, 0, 1) : 0, 7, dt);
+      if(!this.microMotion){this.walkAmount=0;this.walkSpeed=0;this.walkYaw=0;}
       this.hoverBoost = damp(this.hoverBoost, this.hoverTarget, 11, dt);
       this.smoothDragLag = damp(this.smoothDragLag, this.dragVelX, 11, dt);
       this.dragVelX *= Math.exp(-10 * dt);
@@ -973,7 +1047,8 @@
         (this.walkAmount > 0.05 ? this.walkDir * 1.08 * this.walkAmount : 0) +
         (this.depth25D && this.microMotion ? this.lookX * 0.16 * frontFacing : 0) -
         clamp(this.smoothDragLag * 0.015, -0.35, 0.35);
-      this.walkYaw = damp(this.walkYaw, targetYaw, 10, dt);
+      const nextYaw=damp(this.walkYaw,targetYaw,7,dt);
+      this.walkYaw+=clamp(nextYaw-this.walkYaw,-1.6*dt,1.6*dt);
 
       // Update camera distance, vertical focus target & orbital elevation
       const safeH = this.modelHeight || 1.35;
@@ -1009,7 +1084,7 @@
       }
 
       if(this._danceRootBase){this.pivotGroup.position.copy(this._danceRootBase);}
-      // Accumulate canonical anatomical world Euler targets across active pose + locomotion
+      // Accumulate anatomical targets; the adapter maps them into each rig's local frame.
       const wIdle = this.poseWeights.idle;
       const wWave = this.poseWeights.wave * (1 - this.walkAmount);
       const wThink = this.poseWeights.think * (1 - this.walkAmount);
@@ -1114,10 +1189,8 @@
       // TEA pose: Right hand holds 3D teacup comfortably, periodic calm sip cycle
       const teacupVisible = wTea > 0.08 && wWalk < 0.7;
       if (wTea > 0.01) {
-        const sipCycle = (t * 0.42) % 1;
-        const targetSip = sipCycle > 0.52 && sipCycle < 0.86
-          ? Math.sin(((sipCycle - 0.52) / 0.34) * Math.PI)
-          : 0;
+        const sipCycle = (t * 0.125) % 1;
+        const targetSip = smooth01((sipCycle-.45)/.13)*smooth01((.84-sipCycle)/.14);
         this.sipBlend = damp(this.sipBlend, targetSip, 8, dt);
 
         rArmRx += wTea * (-0.18 - this.sipBlend * 0.10);
@@ -1166,13 +1239,24 @@
         chestRy += swing * 0.02 * wWalk;
         headRy *= 1 - wWalk * 0.8;
         headRz *= 1 - wWalk;
-        lArmRx = lArmRx * standWeight + swing * .12 * wWalk;
-        rArmRx = rArmRx * standWeight - swing * .12 * wWalk;
+        lArmRx = lArmRx * standWeight + swing * .18 * wWalk;
+        rArmRx = rArmRx * standWeight - swing * .18 * wWalk;
         lForeRy = -0.16;
         rForeRy = 0.16;
+        lForeRz=(.16+.04*Math.max(0,swing))*wWalk;
+        rForeRz=-(.16+.04*Math.max(0,-swing))*wWalk;
       }
 
-      if(this.microMotion && wWalk<.1 && this.behavior?.id!=='dance'){
+      const gardenActive=this.microMotion&&wWalk<.1&&this.behavior?.id==='garden'&&now<this.behavior.until;
+      const gardenT=gardenActive?Math.max(0,(now-this.behavior.start)/1000):0;
+      const gardenWork=gardenActive?smooth01(gardenT/1.2)*smooth01((11.5-gardenT)/1.5):0;
+      if(gardenActive){
+        hipsRx+=gardenWork*.08;spineRx+=gardenWork*.16;chestRx+=gardenWork*.06;
+        headRx+=gardenWork*.16;headRy*=1-gardenWork;headRz*=1-gardenWork;
+        lThighRx=-gardenWork*.08;rThighRx=-gardenWork*.08;lKneeRx=.04+gardenWork*.16;rKneeRx=.04+gardenWork*.16;
+        lFootRx=-lThighRx-lKneeRx-hipsRx;rFootRx=-rThighRx-rKneeRx-hipsRx;
+      }
+      if(this.microMotion && wWalk<.1 && !['dance','garden','showPlant'].includes(this.behavior?.id)){
         const motion=globalThis.WAIFU_SHARED?.behaviorMotion?.(this.behavior,now);
         if(motion){
           hipsRz+=motion.roll;hipsRy+=motion.turn;hipsPy-=motion.y*this.legLength;
@@ -1180,18 +1264,12 @@
           lArmRz+=Math.max(0,motion.arm)*.6;rArmRz-=Math.max(0,motion.arm)*.6;
           lForeRy-=Math.max(0,motion.arm)*.6;rForeRy+=Math.max(0,motion.arm)*.6;
           if(motion.arm<0){lArmRx-=motion.weight*.22;rArmRx-=motion.weight*.22;lForeRz+=motion.weight*1.1;rForeRz-=motion.weight*1.1;}
-          if(this.behavior?.id==='garden'||this.behavior?.id==='showPlant'){
-            const work=motion.bend/.38;
-            rArmRx-=work*.45;rForeRz-=work*.65;headRx+=work*.35;chestRx+=work*.08;
-            lArmRz-=Math.max(0,motion.arm)*.6;
-          }
-          if(this.behavior?.id==='dance'){lKneeRx+=Math.max(0,motion.roll)*.9;rKneeRx+=Math.max(0,-motion.roll)*.9;}
         }
       }
 
       // Lively tactile click / pose-switch bounce driving Bust & Glute SpringBones
       const bounceAge = (now - this.bounceStart) * 0.001;
-      if (bounceAge >= 0 && bounceAge < 0.62) {
+      if (this.microMotion && bounceAge >= 0 && bounceAge < 0.62) {
         const decay = Math.exp(-5.4 * bounceAge);
         const osc = Math.sin(bounceAge * 26);
         hipsPy += ((0.5 - 0.5 * Math.cos(bounceAge * 26)) * 0.075 + osc * 0.018) * decay * this.legLength * 0.22;
@@ -1215,7 +1293,7 @@
       this._setBoneWorldEuler("hips", hipsRx, hipsRy, hipsRz, hipsPy);
       this._setBoneWorldEuler("spine", spineRx, spineRy, spineRz);
       this._setBoneWorldEuler("chest", chestRx, chestRy, chestRz);
-      const breathPhase = Math.sin(t * 2.15);
+      const breathPhase = this.microMotion?Math.sin(t * 2.15):0;
       const walkSwing = Math.cos(this.walkPhase) * this.walkAmount;
       this._setBoneWorldEuler(
         "upperChest",
@@ -1234,7 +1312,7 @@
       this._setBoneWorldEuler("leftLowerArm", lForeRx, lForeRy, lForeRz);
       this._setBoneWorldEuler(
         "leftHand",
-        Math.sin(t * 2.5 + 0.6) * 0.025 - Math.cos(this.walkPhase) * 0.04 * wWalk,
+        (this.microMotion?Math.sin(t * 2.5 + 0.6) * 0.025:0) - Math.cos(this.walkPhase) * 0.04 * wWalk,
         0,
         0.04 + wWave * Math.sin(t * 6.4) * 0.12
       );
@@ -1242,7 +1320,7 @@
       this._setBoneWorldEuler("rightLowerArm", rForeRx, rForeRy, rForeRz);
       this._setBoneWorldEuler(
         "rightHand",
-        Math.sin(t * 2.5 + 1.4) * 0.025 + Math.cos(this.walkPhase) * 0.04 * wWalk,
+        (this.microMotion?Math.sin(t * 2.5 + 1.4) * 0.025:0) + Math.cos(this.walkPhase) * 0.04 * wWalk,
         0,
         -0.04 - wCheer * Math.sin(t * 6.0) * 0.10
       );
@@ -1254,18 +1332,35 @@
       this._setBoneWorldEuler("rightLowerLeg", rKneeRx, 0, 0);
       this._setBoneWorldEuler("rightFoot", rFootRx, 0, 0);
 
-      this._solveRightArm(wThink, wTea);
       for(const finger of FINGER_BONE_KEYS)this._setBoneWorldEuler(finger,0,0,0);
+      this._solveRightArm(wThink, wTea);
+      if(wWave>.001){const h=this.modelHeight;this._reachHand('right',-h*(.23+Math.sin(t*4)*.012),h*.87,h*.14,wWave,0,-Math.PI/2+Math.sin(t*4)*.12,-Math.PI/2);}
+      if(gardenActive){
+        const carry=smooth01(gardenT/1.2)*smooth01((7-gardenT)/1);
+        const h=this.modelHeight,pour=smooth01((gardenT-1)/1);
+        this._reachHand('right',-h*.20,h*(.43-.09*pour),h*.23,carry,.85);
+        this._reachHand('left',h*.14,h*.43,h*.12,gardenWork,.25);
+      }
+      if(this.microMotion&&wWalk<.1&&now<(this.behavior?.until||0)){
+        const age=(now-this.behavior.start)/1000,remaining=(this.behavior.until-now)/1000,h=this.modelHeight,envelope=smooth01(age/.8)*smooth01(remaining/.7);
+        if(['pout','sidestep'].includes(this.behavior.id)){
+          this._reachHand('left',-h*.08,h*.58,h*.23,envelope,.45);
+          this._reachHand('right',h*.08,h*.61,h*.26,envelope,.45);
+        }
+        const present=this.behavior.id==='showPlant'?envelope:gardenActive?smooth01((gardenT-11.5)/1.0)*smooth01(remaining/.7):0;
+        if(present)this._reachHand('right',-h*.20,h*.38,h*.16,present,.06,-.35);
+      }
 
       if(this.behavior?.id==='dance' && now<this.behavior.until && this.microMotion && wWalk<.1){
         this.dancePlayer?.apply(this,this.behavior,now);
       }
+      this._stabilizePose(dt);
 
       // 3D Eyeball tracking (VRM lookAt OR normalized eye bones on starter GLB)
       if (this.vrm?.lookAt && this._lookAtTargetObj) {
         this._lookAtTargetObj.position.set(
           this.eyeX * 0.95,
-          (this._headWorldY || 1.0) - this.eyeY * 0.55,
+          (this._headWorldY || 1.0) - this.eyeY * 0.55 - gardenWork*this.modelHeight*.45,
           2.2
         );
       } else {
@@ -1310,6 +1405,7 @@
       }
 
       this.secondaryMotion?.apply();
+      this._updateGarden3D(now);
 
       // Expressions: Blink + Pose Emotion + AI Brain Overrides
       const softGaze = (wIdle * 0.015 + wTea * 0.025) * (1 - wWalk);
@@ -1330,7 +1426,7 @@
       this._applyExpression("aa", this.mouthOpenWeight);
       // Reset asymmetric blink channels each frame so cancelling a wink is safe.
       this._applyExpression('blinkLeft',0);this._applyExpression('blinkRight',0);
-      if(this.behavior?.id==='dance' && now<this.behavior.until)this.dancePlayer?.applyFace(this,this.behavior,now);
+      if(this.behavior?.id==='dance' && now<this.behavior.until&&this.microMotion&&wWalk<.1)this.dancePlayer?.applyFace(this,this.behavior,now);
 
       this.renderer.render(this.scene, this.camera);
     }
