@@ -1,5 +1,9 @@
 # Companion polish update
 
+## 1.9.5 dance repair
+
+Both 3D dance clips now repair the source tracker's limb flips and replace unstable full spins with modest turns. Joint constraints, rotation-speed limits, level soles and support-height correction keep movement composed. Playback uses a 600 ms eased transition, cached rig bindings and direct normalized VRM quaternions. Key reduction shrinks the clips by 43–52%. Both actual VRM previews were reviewed; automated checks cover joint speeds, knee hinges, support contact, fades, bindings and cleanup.
+
 ## Delivered
 - Speed-driven 3D walking, alternating planted stance / lifted swing targets, restrained pelvis and shoulder movement, and smooth pose blends.
 - Arm reach targets for thinking and tea; level saucer and relaxed finger grip.

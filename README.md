@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.4**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.9.5**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -20,7 +20,7 @@ Walking wanders across the whole available browser viewport, including diagonal 
 
 Only Calm and Playful appear in the dashboard and character toolbar. Mode selections are synchronized. Dance uses transparent video-derived 24 FPS frames in 2D and source-frame retargeted skeletal GLB tracks in 3D; gardening uses a synchronized sequence: soil, watering, sprout, full plant, then a look and comment. The lightweight SVG pot, watering can and plant are shared across render modes, with mode-specific body gestures. The props are an overlay, including in 3D mode. Brain state remains session-local. No API calls or payment changes are involved.
 
-2D walking uses the four clean, registered source poses with 60 Hz movement. Original bitmap proportions and full opacity stay fixed while walking. 3D walking uses planted stance/swing IK, restrained heel-to-toe roll, a narrow catwalk stance and counterbalanced hips/shoulders. Each 3D dance now follows its own 2D clip timeline: tracked weight shifts, steps and full turns, corrected source arm paths, hand gestures and timed winks. Adult rig proportions are preserved. Inferred depth and hidden joints remain approximate.
+2D walking uses the four clean, registered source poses with 60 Hz movement. Original bitmap proportions and full opacity stay fixed while walking. 3D walking uses planted stance/swing IK, restrained heel-to-toe roll, a narrow catwalk stance and counterbalanced hips/shoulders. Each 3D dance uses its own 2D clip as a timing reference, with conditioned weight shifts, steps, hand gestures and timed winks. Unstable spins become gentle turns; constrained joints, bounded rotation speeds and smooth entry/exit prevent abrupt twisting. Clips are 43–52% smaller and use cached quaternion playback. Adult rig proportions are preserved. Inferred depth and hidden joints remain approximate.
 
 See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for dance sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies clip playback and cleanup; `npm run test:motion` checks garden staging, bounded bending and walk contact/clearance.
 

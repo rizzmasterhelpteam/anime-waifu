@@ -1,8 +1,9 @@
 """Bake source-video landmarks into normalized humanoid GLB animation.
 
-No repeated dance beats or invented oscillators. Every animation key corresponds
-to one of the 240 frames used by SpriteDance. Depth is estimated from a single
-view, while screen-plane limb directions retain the source choreography.
+Source motion is sampled from the 240 frames used by SpriteDance. Single-view
+tracking is then repaired, constrained and smoothed for the adult humanoid rigs.
+Unreliable spins become modest turns; redundant keys are removed within measured
+angular and positional error tolerances before export.
 """
 import argparse
 import json
@@ -14,6 +15,7 @@ from scipy.ndimage import median_filter
 from scipy.signal import savgol_filter
 from scipy.spatial.transform import Rotation as R
 from refine_dance_arms import refine
+from condition_dance_motion import condition, rotation_keys, position_keys
 
 ROOT = Path(__file__).resolve().parents[1]
 BONES = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
@@ -244,18 +246,20 @@ def bake(character, reference):
             if rotations[bone] and np.dot(rotations[bone][-1], quat) < 0:
                 quat = -quat
             rotations[bone].append(quat.tolist())
+    rotations, positions, conditioning = condition(character, rotations, positions, rig)
     # A final hold key preserves the 10 s contract without forcing an invented rest pose.
     times = (np.arange(len(points)) / 24).tolist() + [10.0]
     for bone in BONES:
         rotations[bone].append(rotations[bone][-1])
-    positions = savgol_filter(np.array(positions), 5, 2, axis=0).tolist()
     positions.append(positions[-1])
-    metrics['maxLimbDirectionErrorDegrees'] = max(metrics.pop('screenDirectionErrorDegrees'))
-    export(character, times, rotations, positions, reference, facial)
+    # This checks the raw direction fit only, before anatomical conditioning;
+    # it is not a fidelity score for the shipped motion.
+    metrics['rawFitDirectionErrorDegrees'] = max(metrics.pop('screenDirectionErrorDegrees'))
+    export(character, times, rotations, positions, reference, facial, conditioning)
     print(character, metrics, flush=True)
 
 
-def export(character, times, rotations, positions, reference, facial):
+def export(character, times, rotations, positions, reference, facial, conditioning):
     binary, views, accessors = bytearray(), [], []
     def accessor(values, size, kind):
         flat = [v for row in values for v in row] if size > 1 else values
@@ -267,14 +271,17 @@ def export(character, times, rotations, positions, reference, facial):
             result.update(min=[min(values)], max=[max(values)])
         accessors.append(result)
         return len(accessors)-1
-    time_id = accessor(times, 1, 'SCALAR')
     samplers, channels = [], []
     for bone in BONES:
-        output = accessor(rotations[bone], 4, 'VEC4')
-        samplers.append({'input': time_id, 'output': output, 'interpolation': 'LINEAR'})
+        keys = rotation_keys(times, rotations[bone])
+        input_id = accessor([times[i] for i in keys], 1, 'SCALAR')
+        output = accessor([rotations[bone][i] for i in keys], 4, 'VEC4')
+        samplers.append({'input': input_id, 'output': output, 'interpolation': 'LINEAR'})
         channels.append({'sampler': len(samplers)-1, 'target': {'node': BONES.index(bone), 'path': 'rotation'}})
-    output = accessor(positions, 3, 'VEC3')
-    samplers.append({'input': time_id, 'output': output, 'interpolation': 'LINEAR'})
+    keys = position_keys(times, positions)
+    input_id = accessor([times[i] for i in keys], 1, 'SCALAR')
+    output = accessor([positions[i] for i in keys], 3, 'VEC3')
+    samplers.append({'input': input_id, 'output': output, 'interpolation': 'LINEAR'})
     channels.append({'sampler': len(samplers)-1, 'target': {'node': BONES.index('root'), 'path': 'translation'}})
     gltf = {'asset': {'version': '2.0', 'generator': 'Source-frame humanoid retarget'},
             'scene': 0, 'scenes': [{'nodes': list(range(len(BONES)))}],
@@ -283,7 +290,8 @@ def export(character, times, rotations, positions, reference, facial):
             'animations': [{'name': 'dance-reference', 'samplers': samplers, 'channels': channels}],
             'extras': {'coordinateConvention': 'normalized humanoid local rotations, +X left, +Y up, +Z forward',
                        'source': reference['source'], 'sourceFps': 24, 'sourceFrames': 240,
-                       'method': 'source-frame landmark retarget; monocular estimated depth',
+                       'method': 'conditioned source-frame retarget with repaired tracking turns',
+                       'conditioning': conditioning,
                        'faceCues': facial,
                        'reference': f'pipeline/motion/{character}-dance-landmarks.json'}}
     encoded = json.dumps(gltf, separators=(',', ':')).encode()
@@ -292,7 +300,7 @@ def export(character, times, rotations, positions, reference, facial):
     blob = struct.pack('<III', 0x46546c67, 2, 28+len(encoded)+len(binary))
     blob += struct.pack('<II', len(encoded), 0x4e4f534a) + encoded
     blob += struct.pack('<II', len(binary), 0x004e4942) + binary
-    (ROOT / 'assets/animations' / character / 'dance-reference.glb').write_bytes(blob)
+    (ROOT / 'assets/animations' / character / 'dance-natural.glb').write_bytes(blob)
 
 
 if __name__ == '__main__':

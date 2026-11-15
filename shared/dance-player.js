@@ -4,6 +4,7 @@
  const url=p=>chrome.runtime.getURL(p);
  async function resource(path,type){const r=await fetch(url(path),{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('Dance asset unavailable: '+path);return type==='json'?r.json():r.arrayBuffer();}
  const weight=(elapsed,duration)=>Math.max(0,Math.min(1,elapsed/.25,(duration-elapsed)/.25));
+ const skeletalWeight=(elapsed,duration)=>{const u=Math.max(0,Math.min(1,elapsed/.6,(duration-elapsed)/.6));return u*u*(3-2*u);};
  class SpriteDance {
   constructor(){this.pages=new Map();this.pending=new Map();this.generation=0;this.meta=null;this.model=null;}
   async prepare(key){
@@ -34,7 +35,7 @@
   async prepare(key){
    key=canonical(key);if(this.model===key&&this.scene)return this.duration;
    this.release();const generation=this.generation,V=root.WAIFU_VRM_VENDOR,T=V.THREE;
-   const buffer=await resource('assets/animations/'+key+'/dance-reference.glb');
+   const buffer=await resource('assets/animations/'+key+'/dance-natural.glb');
    const gltf=await new Promise((resolve,reject)=>new V.GLTFLoader().parse(buffer,'',resolve,reject));
    if(generation!==this.generation)throw Error('Dance cancelled');
    if(!gltf.animations[0])throw Error('Missing dance tracks');
@@ -45,7 +46,7 @@
   }
   apply(animator,behavior,now){
    if(!this.scene)return;
-   const elapsed=Math.max(0,(now-behavior.start)/1000),blend=weight(elapsed,this.duration);
+   const elapsed=Math.max(0,(now-behavior.start)/1000),blend=skeletalWeight(elapsed,this.duration);
    this.mixer.setTime(Math.min(this.duration,elapsed));
    const motionRoot=this.targets.get('root');
    if(motionRoot&&animator.pivotGroup){
@@ -53,8 +54,17 @@
     animator.pivotGroup.position.copy(animator._danceRootBase).addScaledVector(motionRoot.position,(animator.legLength||1)*blend);
     this.euler.setFromQuaternion(motionRoot.quaternion,'XYZ');animator.pivotGroup.rotation.y+=this.euler.y*blend;
    }
-   for(const [key,node]of this.targets){
-    const record=animator.boneMap.get(key);if(!record)continue;
+   if(this.boundAnimator!==animator){
+    this.boundAnimator=animator;this.bindings=[];
+    for(const [key,node]of this.targets){const record=animator.boneMap.get(key);if(record)this.bindings.push({key,node,record});}
+   }
+   for(const {key,node,record}of this.bindings){
+    if(record.isNormalizedVrm){
+     this.targetQ.copy(record.restLocalQ).multiply(node.quaternion);
+     record.node.quaternion.slerp(this.targetQ,blend);
+     if(key==='hips')record.node.position.lerp(record.restLocalPos,blend);
+     continue;
+    }
     this.beforeQ.copy(record.node.quaternion);this.euler.setFromQuaternion(node.quaternion,'XYZ');
     animator._setBoneWorldEuler(key,this.euler.x,this.euler.y,this.euler.z);
     this.targetQ.copy(record.node.quaternion);
@@ -63,10 +73,10 @@
   }
   applyFace(animator,behavior,now){
    if(!this.faceCues?.length)return;
-   const elapsed=Math.max(0,(now-behavior.start)/1000),frame=Math.min(this.faceCues.length-1,elapsed*24),a=Math.floor(frame),b=Math.min(this.faceCues.length-1,a+1),u=frame-a,blend=weight(elapsed,this.duration);
+   const elapsed=Math.max(0,(now-behavior.start)/1000),frame=Math.min(this.faceCues.length-1,elapsed*24),a=Math.floor(frame),b=Math.min(this.faceCues.length-1,a+1),u=frame-a,blend=skeletalWeight(elapsed,this.duration);
    for(let eye=0;eye<2;eye++)animator._applyExpression(eye?'blinkRight':'blinkLeft',(this.faceCues[a][eye]*(1-u)+this.faceCues[b][eye]*u)*blend);
   }
-  release(){this.generation++;this.mixer?.stopAllAction();if(this.scene)this.mixer?.uncacheRoot(this.scene);this.scene=null;this.model=null;this.faceCues=null;this.targets?.clear();}
+  release(){this.generation++;this.mixer?.stopAllAction();if(this.scene)this.mixer?.uncacheRoot(this.scene);this.scene=null;this.model=null;this.faceCues=null;this.boundAnimator=null;this.bindings=null;this.targets?.clear();}
  }
  root.WAIFU_DANCE={SpriteDance,SkeletonDance,weight};
 })(globalThis);
