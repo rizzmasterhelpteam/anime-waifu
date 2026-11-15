@@ -113,3 +113,10 @@ Validation used the actual unpacked extension in a fresh Chrome for Testing prof
 Re-run: python tests/runtime-fixture-server.py, then node tests/runtime-performance-review.cjs with Playwright and a Chromium/Chrome for Testing executable supporting unpacked extensions. Optional PLAYWRIGHT_MODULE, BROWSER_PATH, EXTENSION_DIR, REVIEW_BASE_URL and REVIEW_OUTPUT configure the test. It creates a fresh isolated browser profile under its output folder. Other reviews accept REVIEW_BASE_URL; the fixture server defaults to port 8766. Regenerate static thumbnails with pipeline/build_dashboard_thumbnails.cjs when model artwork changes.
 
 Reload the unpacked extension and refresh existing website tabs to activate the new scripts and permissions.
+
+
+## Seraphina undergarment coverage (1.9.3)
+
+The shipped Seraphina VRM includes fitted black triangle briefs with a subtle charcoal waistband and continuous gusset. The lightweight skinned mesh has 3,264 triangles, two opaque, double-sided untextured materials, and normalized weights sampled from the existing body. It adds no runtime asset request or animation loop.
+
+`pipeline/add_seraphina_underwear.py --input <original-seraphina.vrm> --output assets/models/seraphina.vrm` regenerates the garment using the original pelvic surface and skin. Keep the source backup outside the shipped asset directory; the builder rejects a model that already contains the garment. `npm run test:coverage` checks 165 underside rays, material opacity, triangle budget and valid skin weights. Front, rear, underside and dressed views were visually reviewed.
