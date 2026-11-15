@@ -1,6 +1,6 @@
 # Animation assets and playback
 
-## Active native 3D pipeline (1.10.0)
+## Active native 3D pipeline (1.10.1)
 
 Seraphina and Crimson now use `authored-actions.glb`, one compact library per avatar. Nine authored clips drive idle, walking, dancing, waving, thinking, tea, celebration, gardening, folded-arm reactions, rest and plant presentation. The complete 3D performance replaces the earlier procedural native-VRM pose stack and video-estimated dance. The starter/custom GLB fallback retains its separate legacy renderer.
 
@@ -14,7 +14,7 @@ Clips are sampled at 30 Hz and reduced within 0.08 degrees angular and 0.0002 le
 
 The normal `Walk_Loop` provides arm swing and coordinated steps. Its measured foot travel, duration and target rig height determine the natural pixel speed. The page path extends its travel duration when necessary, so it does not slide a slow walk rapidly across the viewport. Cadence can adjust modestly with speed. Both characters retain adult proportions.
 
-Gardening lasts 16 seconds: the pot appears first, standing watering runs from 1-7.2 s, growth from 7.2-11.8 s, then a presentation gesture and the shared 13 s comment. The can follows the hand; its spout pours toward the soil in a 3D pot. The plant grows in stages. `showPlant` presents an already grown plant. The 3D scene owns these props, creates them on demand and releases geometry/materials when the model changes. A cancellable timer handles reveal text; no hidden 2D SVG animation runs for 3D. Calm, hiding, focus sessions and cancellation stop props and delayed speech.
+Gardening lasts 16 seconds. Both renderers use `gardenState()` for lifting, pouring (3.2-5.8 seconds), lowering, growth (7.2-11.8 seconds), and the 13-second comment. The native VRM can is fitted to the curled finger grip, using the rendered raw finger positions after the humanoid update and normalized wrist rotation with a source-pose grip calibration. The handle is a vertical loop joined to the can body. The source performance advances into a steady pour, then reverses to lower the can. Water starts at the actual spout opening, follows a gravity curve, and only flows when the can is tipped and its trajectory hits the soil. The pot is placed beneath that trajectory, rather than a beam aiming at an arbitrary pot. `showPlant` presents an already grown plant. Props are created on demand and disposed on model change; cancellation hides them immediately.
 
 These are stylized authored game animations adapted to the two clothed avatars, not an exact recreation of the supplied 2D video or a cloth simulation. The fitted outfits and different proportions still require visual review when adding extreme poses. A passing numerical test is not a judgement of animation quality.
 
@@ -28,7 +28,7 @@ Playback retains only the current and next atlas page (about 24.6 MiB decoded to
 
 2D walking draws the four clean registered source poses with fixed aspect ratio, full opacity and rigid transforms. Screen translation updates at 60 Hz. There is no optical-flow warping or perspective deformation during locomotion. Additional drawn poses would be needed for finer leg articulation.
 
-2D gardening keeps its existing SVG/whole-sprite timeline: soil/pot, watering, growth, then the look/comment at 13 seconds. Both modes continue using the same local personality brain, Calm/Playful controls, action selection and interruption rules.
+2D gardening uses two dedicated transparent `garden.png` character drawings, generated from each existing idle sprite to preserve the hair, outfit, colors and accessories. The hand visibly wraps the can handle. A small elbow rotation moves the complete forearm/hand/can pixel layer together; the water nozzle uses that same transform. Canvas-rendered soil, water and plant share the character coordinate system and scale. The independent SVG can overlay is removed. `GardenSequence` now owns only the cancellable reveal timer and runs no animation loop. See `assets/sprites/GARDEN-SOURCES.json` for provenance. Both modes retain the same local personality brain, Calm/Playful controls, action selection and interruption rules.
 
 ## Supplied video disposition
 
@@ -39,7 +39,9 @@ All six reviewed files were 10 seconds, 1080x1920 and 24 FPS. The two `Person_da
 - Put the recorded source glTF/bin, UAL2 Standard GLB and KayKit Rig_Medium Simulation GLB at the paths listed in `AUTHORED-SOURCES.json`, under `work/authored-motion/`, then run `python pipeline/retarget_authored_actions.py`. It requires NumPy and SciPy, plus the existing pipeline's dependencies. The script does not modify the character VRMs.
 - `python pipeline/process_dance_videos.py <source-folder>` rebuilds the unchanged 2D atlases from the original videos.
 - `npm run test:dance` tests 2D/legacy playback and resource cleanup, then parses both authored libraries, checks complete joint tracks, normalized quaternions, loop continuity and the preserved 3D elbow plane.
-- `npm run test:motion` checks the shared gardening timer, legacy GLB gait and 2D walk stability, then runs production native motion through all twelve action paths on skeletons measured from both shipped VRMs. It checks source-pose preservation after handoff, sole penetration, props, growth, interruption, static poses, turns and cleanup. Calls into the old procedural clamp/IK functions are test failures.
+- `npm run test:motion` checks the shared gardening timer, 2D grip/nozzle tracking at three sizes, legacy GLB gait and 2D walk stability, then runs production native motion through all twelve action paths on skeletons measured from both shipped VRMs. It checks source-pose preservation after handoff, sole penetration, props, growth, interruption, static poses, turns and cleanup. Calls into the old procedural clamp/IK functions are test failures.
 - `npm run test:behavior` checks activity rarity, cooldowns, continuous scheduling, mode semantics, viewport bounds and stride-paced 3D travel.
 
 Serve the repository with `python tests/runtime-fixture-server.py`. `/tests/all-3d-actions.html` displays both actual clothed VRMs with playback, pose/soil/watering/growth/reveal checkpoints, orbit views and a contact sheet. Review continuous movement as well as still poses. `/tests/reference-dance.html` compares the 2D video and new authored 3D choreography; it does not claim frame-for-frame matching.
+
+`/tests/gardening-review.html` provides hold/pour/lower/growth/reveal checkpoints for both 2D characters.

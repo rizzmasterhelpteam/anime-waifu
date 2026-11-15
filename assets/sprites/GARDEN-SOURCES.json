@@ -1,0 +1,25 @@
+{
+  "method": "Image generation edit of supplied project idle artwork: preserve character identity and outfit, add an extended arm visibly gripping a tilted watering can. Transparent PNG; no water or plant baked in. Runtime animates connected forearm/hand/can pixels and draws the water/soil/plant.",
+  "characters": {
+    "seraphina": {
+      "reference": "assets/sprites/idle.png",
+      "referenceSha256": "7c764baf2679205d69372b3ca2798a109923cf90fb431b3c652a3f86ce3d3497",
+      "output": "assets/sprites/garden.png",
+      "outputSha256": "167833d626fa75d1c8978044a36317d1636b927535cbe694013e227b8f27da77",
+      "size": [
+        1098,
+        1433
+      ]
+    },
+    "gothic_red": {
+      "reference": "assets/sprites/crimson/idle.png",
+      "referenceSha256": "3e0d6db219fba325282c8e02f7cb0d5b332f059addc141eb9206dfbb7bbb2007",
+      "output": "assets/sprites/crimson/garden.png",
+      "outputSha256": "a4f8feaf97ce7dfb5e840ddaa70ee8b412cfe0a3b849e583aa3aac87ea461efe",
+      "size": [
+        1098,
+        1433
+      ]
+    }
+  }
+}

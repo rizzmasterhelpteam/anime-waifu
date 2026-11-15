@@ -541,7 +541,7 @@
         if(request!==behaviorRequest||instance!==animator||animator.behavior?.id!=='garden'||performance.now()>=animator.behavior.until||settings.interactionFrequency==='quiet'||document.hidden)return;
         animator.setPointerLook?.(0,0,0,0);
         showBubble(crimson?"Look! I grew this! Pretty impressive, right?":"A little care goes a long way. Look what we grew.",3500);
-      },{visual:!is3D});
+      });
     }
     behaviorPropTimer=setTimeout(()=>{
       if(behaviorProp)behaviorProp.hidden=true;

@@ -1,6 +1,6 @@
 # Anime Waifu Companion
 
-A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.10.0**.
+A Manifest V3 Chrome extension featuring Seraphina and Crimson in animated 2D and adult-proportion 3D modes. Current version: **1.10.1**.
 
 ## Features
 - Draggable companions with gestures, walking, adjustable size and opacity, and per-site visibility.
@@ -22,7 +22,7 @@ Only Calm and Playful appear in the dashboard and character toolbar. Mode select
 
 Both native 3D models now use complete authored skeletal clips, retargeted from the CC0 Quaternius and KayKit libraries. One coordinated body performance drives each action, with a 450 ms whole-pose transition. The former native 3D procedural pose stack, video-estimated dance and per-frame Euler/hinge overrides are bypassed. Forearm rotation, wrist motion, torso balance, foot roll and fingers retain their authored 3D relationship. The relaxed idle pose is adapted to the fitted outfits. 3D choreography differs from the 2D video.
 
-3D walking uses the normal authored walk with arm swing. Screen travel is paced against the measured stride, including diagonal journeys, and heading changes ease into the new direction. Gardening uses authored standing watering motion, a hand-following 3D can, soil/pot, staged growth and a final presentation gesture. Calm, interruption and model changes clean up props and delayed reveal text. No API or paid service runs these animations.
+3D walking uses the normal authored walk with arm swing. Screen travel is paced against the measured stride, including diagonal journeys, and heading changes ease into the new direction. Gardening uses authored standing watering motion, a finger-gripped 3D can with wrist rotation and gravity-driven water, soil/pot, staged growth and a final presentation gesture. Calm, interruption and model changes clean up props and delayed reveal text. No API or paid service runs these animations.
 
 See [ANIMATION_PIPELINE.md](ANIMATION_PIPELINE.md) for sources, processing and limitations. `npm run test:behavior` verifies weighted selection, cooldowns, continuous scheduling, pause semantics and viewport bounds; `npm run test:dance` verifies 2D/legacy playback, authored clip loops and 3D joint data; `npm run test:motion` checks full rig motion across all 12 actions on both measured rigs, gardening, static poses, cancellation and 2D walk stability.
 
@@ -66,3 +66,5 @@ See [STUDIO_UPDATE.md](STUDIO_UPDATE.md) for implementation notes, asset provena
 
 ## Credentials
 Keep private API keys, Supabase secret/service-role keys, environment files and browser profiles out of Git. Future AI credentials belong in backend secrets, not extension source.
+
+Gardening in 2D uses dedicated held-can character artwork, with the forearm, grip and can moving together. Both modes share the pouring/lowering/growth timeline; the old independent floating SVG can has been removed.

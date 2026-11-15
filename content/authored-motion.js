@@ -30,6 +30,23 @@
    this.base=animator.pivotGroup.position.clone();this.rootPosition=new T.Vector3();this.fromRoot=new T.Vector3();this.targetRoot=new T.Vector3();
    this.scratchQ=new T.Quaternion();this.gazeQ=new T.Quaternion();this.scratchEuler=new T.Euler();this.point=new T.Vector3();
    this.clipTime=0;this.age=0;this.name=null;this.token=null;this.blending=false;
+   // Fit the prop to the authored curled grip, in normalized axes. The raw
+   // rendered fingers supply its live position after VRM humanoid updates.
+   const water=this.actions.get('water');water.play();this.mixer.setTime(water.getClip().duration*.58);
+   const byNode=new Map(this.bindings.map(b=>[b.record.node,b]));
+   const matrix=node=>{if(node===animator.pivotGroup)return new T.Matrix4();const b=byNode.get(node),q=b?b.record.restLocalQ.clone().multiply(b.target.quaternion):node.quaternion;
+    const local=new T.Matrix4().compose(b?b.record.restLocalPos:node.position,q,node.scale);return node.parent?matrix(node.parent).multiply(local):local;};
+   const handMatrix=matrix(animator.boneMap.get('rightHand').node),handQ=new T.Quaternion().setFromRotationMatrix(handMatrix);
+   const canQ=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1),.65);
+   this.waterGripCorrection=handQ.invert().multiply(canQ);
+   const grip=new T.Vector3(),keys=['rightMiddleIntermediate','rightMiddleDistal'];let count=0;
+   for(const key of keys){const n=animator.boneMap.get(key)?.node;if(n){grip.add(new T.Vector3().setFromMatrixPosition(matrix(n)));count++;}}
+   if(count)grip.multiplyScalar(1/count);else grip.setFromMatrixPosition(handMatrix);
+   const scale=animator.modelHeight*.06,tip=new T.Vector3(-1.45,-.32,0).multiplyScalar(scale).applyQuaternion(canQ).add(grip);
+   const velocity=new T.Vector3(-.87,.5,0).normalize().applyQuaternion(canQ).multiplyScalar(animator.modelHeight*.24),gravity=animator.modelHeight*3;
+   const fall=(velocity.y+Math.sqrt(velocity.y*velocity.y+2*gravity*Math.max(0,tip.y-animator.modelHeight*.083)))/gravity;
+   this.waterPotPosition=tip.addScaledVector(velocity,fall);this.waterPotPosition.y=animator.modelHeight*.005;
+   water.stop();this.mixer.setTime(0);
   }
   walkSpeedPx(rate=1){
    const a=this.a,clip=this.metadata.clips.walk;
@@ -42,8 +59,9 @@
    if(active){
     const token=b.id+':'+b.start;
     if(b.id==='garden'){
+     const garden=root.WAIFU_SHARED.gardenState(t);
      if(t<1)return {name:'idle',token:token+':soil'};
-     if(t<7.2)return {name:'water',token:token+':water',time:(t-1)/6.2*this.actions.get('water').getClip().duration};
+     if(t<8.05)return {name:'water',token:token+':water',time:garden.source*this.actions.get('water').getClip().duration};
      if(t<11.8)return {name:'idle',token:token+':grow'};
      return {name:'talk',token:token+':present'};
     }

@@ -1,5 +1,9 @@
 # Companion polish update
 
+## 1.10.1 held-can gardening
+
+Removed the floating 2D watering overlay. Dedicated character-matched gardening sprites visibly grip the can; the connected forearm/can layer and stream share one transform. Both renderers use a common lift/pour/lower/grow timeline. Native 3D props now fit inside the rendered curled fingers and follow wrist rotation, with a vertical handle and correctly aligned spout. Water follows a gravity curve from the nozzle into soil instead of aiming itself as a straight beam. Growth starts after watering. Added grip/nozzle regression checks and a two-character 2D review fixture.
+
 ## 1.10.0 authored 3D motion replacement
 
 The native VRM models now use nine selected CC0 authored clips from Quaternius and KayKit across their twelve action paths. Complete quaternion poses replace the previous procedural stack and video-estimated native 3D dance. Whole-pose handoffs preserve the source elbow plane, wrist rotation, balance and finger gestures. The relaxed idle is adapted to the fitted clothes. Heel/toe support is fitted to each avatar offline; screen travel follows the measured walk stride. Standing watering uses an actual skeletal clip with staged 3D props and a presentation phase. Existing 2D artwork, dance and walking remain intact.

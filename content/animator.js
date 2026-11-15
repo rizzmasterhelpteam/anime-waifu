@@ -654,6 +654,11 @@
         this.behavior=null;console.warn('Dance buffering failed; returning to idle');
       }else if(this.danceWasPlaying){this.dancePlayer?.release();this.danceWasPlaying=false;}
 
+      if(this.microMotion&&this.behavior?.id==='garden'&&now<this.behavior.until&&this.sprites.has('garden')){
+        this.canvas.style.transform='';this.lastCanvasTransform='';
+        this.drawGardenFrame(now);return;
+      }
+
       const frame = this.resolveActiveFrame(now);
       const activeImg = this.sprites.get(frame.key) || this.sprites.get("idle");
       if (!activeImg) return;
@@ -845,6 +850,48 @@
       }
 
       ctx.restore();
+    }
+
+    drawGardenFrame(now) {
+      const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height,t=Math.max(0,(now-this.behavior.start)/1000);
+      const state=root.WAIFU_SHARED.gardenState(t),crimson=this.modelKey==='gothic_red';
+      const top=crimson?70:46,foot=crimson?1351:1391,center=crimson?570:600;
+      const scale=h*.865/(foot-top),elbow=crimson?[410,712]:[390,707];
+      const angle=.07-.12*state.pour-.02*state.lift;
+      const rotate=(x,y,a)=>({x:elbow[0]+Math.cos(a)*(x-elbow[0])-Math.sin(a)*(y-elbow[1]),y:elbow[1]+Math.sin(a)*(x-elbow[0])+Math.cos(a)*(y-elbow[1])});
+      const nozzle=rotate(crimson?89:98,crimson?970:973,angle),aim=rotate(crimson?89:98,crimson?970:973,-.07);
+      const soil={x:Math.max(68,aim.x-15),y:foot-95};
+      ctx.clearRect(0,0,w,h);ctx.save();ctx.translate(w*.5-center*scale,h*.944-foot*scale);ctx.scale(scale,scale);
+      ctx.save();ctx.globalAlpha=state.pot;
+      ctx.fillStyle='#0002';ctx.beginPath();ctx.ellipse(soil.x,foot-5,58,9,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#b87354';ctx.strokeStyle='#744839';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(soil.x-52,soil.y+5);ctx.lineTo(soil.x+52,soil.y+5);ctx.lineTo(soil.x+40,foot-10);ctx.lineTo(soil.x-40,foot-10);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#d48768';ctx.fillRect(soil.x-58,soil.y-4,116,18);ctx.fillStyle=state.watering||state.growth>0?'#35271f':'#493126';ctx.beginPath();ctx.ellipse(soil.x,soil.y,49,8,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      if(state.growth>0){
+        ctx.save();ctx.translate(soil.x,soil.y);ctx.scale(state.growth,state.growth);ctx.strokeStyle='#437b49';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-7,-75,4,-150);ctx.stroke();
+        for(let i=0;i<4;i++){ctx.save();ctx.translate(0,-30-i*30);ctx.rotate((i%2?1:-1)*.65);ctx.fillStyle='#77b56a';ctx.beginPath();ctx.ellipse(i%2?24:-24,0,28,11,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+        ctx.fillStyle=crimson?'#c85c7b':'#dca9dd';for(let i=0;i<5;i++){const a=i/5*Math.PI*2;ctx.beginPath();ctx.ellipse(4+Math.cos(a)*13,-151+Math.sin(a)*13,12,10,a,0,Math.PI*2);ctx.fill();}ctx.restore();
+      }
+      if(state.watering){
+        ctx.save();ctx.strokeStyle='#83c9eb';ctx.lineWidth=3;ctx.lineCap='round';
+        for(let i=0;i<3;i++){ctx.globalAlpha=state.pour*(.55+.2*Math.sin(t*13+i));ctx.beginPath();ctx.moveTo(nozzle.x+i*3-3,nozzle.y+i*3);ctx.quadraticCurveTo(nozzle.x-18,nozzle.y+(soil.y-nozzle.y)*.3,soil.x+i*4-4,soil.y);ctx.stroke();}ctx.restore();
+      }
+      const image=this.sprites.get('garden');
+      ctx.save();ctx.globalAlpha=1-state.look;
+      const arm=()=>{
+        // Only the forearm and its already-gripped can move. Keeping these in
+        // the same pixel layer makes the handle/fingers impossible to separate.
+        const points=crimson?[[407,680],[460,722],[380,796],[353,818],[383,990],[248,1045],[48,1030],[40,930],[172,927],[163,847],[215,777],[287,715],[370,674]]:[[378,681],[418,714],[326,811],[354,958],[241,1034],[51,1024],[45,934],[173,935],[171,854],[216,781],[354,689]];
+        ctx.moveTo(...points[0]);for(const p of points.slice(1))ctx.lineTo(...p);ctx.closePath();
+      };
+      // Both source drawings have transparent space around this extended arm.
+      // Rotate around the elbow, retaining the entire original grip and can.
+      ctx.save();ctx.beginPath();ctx.rect(0,0,image.width,image.height);arm();ctx.clip('evenodd');ctx.drawImage(image,0,0);ctx.restore();
+      ctx.save();ctx.translate(...elbow);ctx.rotate(angle);ctx.translate(-elbow[0],-elbow[1]);ctx.beginPath();arm();ctx.clip();ctx.drawImage(image,0,0);ctx.restore();
+      ctx.restore();
+      const idle=this.sprites.get('idle');
+      if(state.look>0&&idle){const fit=(foot-top)/558;ctx.save();ctx.globalAlpha=state.look;ctx.drawImage(idle,center-(crimson?226:249)*fit,foot-583*fit,460*fit,600*fit);ctx.restore();}
+      ctx.restore();
+      this.gardenFrame={nozzle,soil,angle,state,scale};
     }
 
     drawCrimsonWave(ctx, image, width, height, now) {

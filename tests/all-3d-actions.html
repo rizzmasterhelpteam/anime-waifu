@@ -2,8 +2,8 @@
 <style>body{margin:0;background:#262733;color:#eee;font:15px system-ui}header{padding:12px 20px}h1{font-size:20px}button{padding:8px 12px;margin:3px;border:0;border-radius:5px}main{display:flex;justify-content:center;gap:12px}section{text-align:center}canvas{background:#30313d;border:1px solid #555;border-radius:8px}output{display:block;font:13px monospace}#status{margin:10px}</style>
 <header><h1>Both 3D rigs — complete action review</h1><div id="actions"></div><button id="pause">Pause</button><button id="pose">Pose checkpoint</button><button id="soil">Soil checkpoint</button><button id="water">Watering checkpoint</button><button id="growth">Growth checkpoint</button><button id="reveal">Reveal checkpoint</button><button id="cancel">Cancel to idle</button><button id="review">Review all poses</button><p id="status">Loading both models…</p></header>
 <main><section><h2>Seraphina</h2><canvas id="seraphina"></canvas><output id="seraphina-info"></output></section><section><h2>Crimson</h2><canvas id="gothic_red"></canvas><output id="gothic_red-info"></output></section></main>
-<script>window.chrome={runtime:{getURL:p=>'/'+p+'?actions=1105'}};</script>
-<script src="/vendor/vrm-bundle.js"></script><script src="/shared/defaults.js"></script><script src="/shared/dance-player.js?actions=1105"></script><script src="/content/secondary-motion.js?actions=1105"></script><script src="/content/authored-motion.js?actions=1105"></script><script src="/content/vrm-animator.js?actions=1105"></script>
+<script>window.chrome={runtime:{getURL:p=>'/'+p+'?actions=1101gardenb'}};</script>
+<script src="/vendor/vrm-bundle.js"></script><script src="/shared/defaults.js?actions=1101gardenb"></script><script src="/shared/dance-player.js?actions=1101gardenb"></script><script src="/content/secondary-motion.js?actions=1101gardenb"></script><script src="/content/authored-motion.js?actions=1101gardenb"></script><script src="/content/vrm-animator.js?actions=1101gardenb"></script>
 <script>
 const rigs=[],status=document.querySelector('#status'),pause=document.querySelector('#pause');
 let running=true,ready=false,clock=performance.now(),baseTime=clock,elapsed=0,action='idle';

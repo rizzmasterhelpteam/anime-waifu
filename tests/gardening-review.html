@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Gardening grip review</title>
+<style>body{margin:0;background:#30313d;color:#eee;font:15px system-ui}header{padding:15px}button{padding:8px;margin:3px}main{display:flex;flex-wrap:wrap;justify-content:center;gap:15px}canvas{border:1px solid #666}h2{text-align:center}output{display:block}</style>
+<header><h1>2D held-can gardening</h1><div id="controls"></div><output id="status">Loading…</output></header><main id="models"></main>
+<script>window.chrome={runtime:{getURL:p=>'/'+p+'?garden=1101c'}};</script>
+<script src="/shared/defaults.js?garden=1101c"></script><script src="/content/animator.js?garden=1101c"></script>
+<script>
+const models=[],status=document.querySelector('#status');let running=false,base=performance.now();
+function render(t){for(const a of models){a.renderFrame(base+t*1000);const g=a.gardenFrame;document.querySelector('#'+a.modelKey+'-info').textContent=g?'Grip connected • tilt '+g.angle.toFixed(2)+' • water '+g.state.watering+' • growth '+g.state.growth.toFixed(2):'Idle';}status.textContent=t.toFixed(2)+' seconds';}
+for(const [name,t]of [['Hold',1.2],['Pour',4.6],['Lower',7.5],['Grow',9.5],['Reveal',13.5]]){const b=document.createElement('button');b.textContent=name;b.onclick=()=>{running=false;render(t);};document.querySelector('#controls').append(b);}
+const play=document.createElement('button');play.textContent='Play sequence';play.onclick=()=>{base=performance.now();for(const a of models)a.behavior={id:'garden',start:base,until:base+16000};running=true;};document.querySelector('#controls').append(play);
+function frame(now){if(running){const t=(now-base)/1000;if(t<16)render(t);else running=false;}requestAnimationFrame(frame);}
+(async()=>{for(const key of ['seraphina','gothic_red']){const section=document.createElement('section');section.innerHTML='<h2>'+key+'</h2><canvas></canvas><output id="'+key+'-info"></output>';document.querySelector('#models').append(section);const a=new WaifuMeshAnimator(section.querySelector('canvas'),{modelKey:key,height:480,depth25D:false});await a.preloadAll();a.stopLoop();a.behavior={id:'garden',start:base,until:base+16000};models.push(a);}render(4.6);requestAnimationFrame(frame);})();
+</script></html>

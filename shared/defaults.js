@@ -60,6 +60,7 @@
       think: `${prefix}think.png`,
       celebrate: `${prefix}celebrate.png`,
       tea: `${prefix}tea.png`,
+      garden: `${prefix}garden.png`,
       walk_left: `${prefix}walk_left.png`,
       walk_pass_left: `${prefix}walk_pass_left.png`,
       walk_contact_right: `${prefix}walk_contact_right.png`,
@@ -424,6 +425,18 @@
     return best;
   }
 
+  function gardenState(seconds) {
+    const ease=v=>{v=Math.max(0,Math.min(1,v));return v*v*(3-2*v);};
+    const lift=ease((seconds-1)/2.2)*(1-ease((seconds-6)/2));
+    const pour=ease((seconds-3.2)/.45)*(1-ease((seconds-5.4)/.4));
+    // Advance to the pouring pose, hold it, then reverse the same connected
+    // performance to lower the can before returning to idle.
+    const source=seconds<3.2?Math.max(0,(seconds-1)/2.2)*.58:seconds<5.8?.58+Math.sin((seconds-3.2)*2)*.004:.58*(1-ease((seconds-5.8)/2.2));
+    return {pot:ease(seconds/.65),lift,pour,source,watering:pour>.01,
+      carry:ease((seconds-.8)/.35)*(1-ease((seconds-8)/.35)),
+      growth:ease((seconds-7.2)/4.6),look:ease((seconds-11.8)/1),done:seconds>=13};
+  }
+
   function behaviorMotion(behavior, now) {
     const zero={x:0,y:0,roll:0,turn:0,bend:0,arm:0,weight:0};
     if(!behavior || now>=behavior.until) return zero;
@@ -443,6 +456,7 @@
   }
 
   root.WAIFU_SHARED = {
+    gardenState,
     CompanionBrain,
     ActivityDirector,
     wanderDestination,

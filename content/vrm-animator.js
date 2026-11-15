@@ -1038,13 +1038,18 @@
       for(let i=0;i<4;i++){const sign=i%2?1:-1,n=mesh(leafGeometry,green,plant,sign*.25,.4+i*.3);n.scale.set(.4,.1,.17);n.rotation.z=sign*.4;}
       for(let i=0;i<5;i++){const a=i/5*Math.PI*2,n=mesh(leafGeometry,petal,plant,Math.cos(a)*.14,1.75+Math.sin(a)*.14);n.scale.set(.15,.13,.07);}
       group.add(can);can.scale.setScalar(h*.065);
-      mesh(new THREE.CylinderGeometry(.58,.52,.85,12),metal,can,0,-.48);
-      const handle=mesh(new THREE.TorusGeometry(.4,.075,6,16),metal,can,0,.02);handle.rotation.x=Math.PI/2;
-      const spout=mesh(new THREE.CylinderGeometry(.09,.16,1.0,8),metal,can,-.78,-.3);spout.rotation.z=-1.0;
-      const tip=new THREE.Object3D();tip.position.set(-1.22,-.02,0);can.add(tip);
-      const stream=mesh(new THREE.CylinderGeometry(.003,.004,1,6),water,group);stream.visible=false;
+      mesh(new THREE.CylinderGeometry(.58,.52,.85,12),metal,can,0,-.84);
+      // The origin is the top grip bar, inside the fingers. A vertical loop
+      // joins the bar to the body instead of passing through an open wrist.
+      mesh(new THREE.TorusGeometry(.32,.065,8,20),metal,can,0,-.32);
+      const spout=mesh(new THREE.CylinderGeometry(.09,.16,1.08,8),metal,can,-.98,-.59);spout.rotation.z=1.05;
+      const tip=new THREE.Object3D();tip.position.set(-1.45,-.32,0);can.add(tip);
+      const stream=new THREE.Group();group.add(stream);stream.visible=false;
+      for(let i=0;i<3;i++){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(17*3),3));stream.add(new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0x87d2f4,transparent:true,opacity:.8})));}
+      water.dispose();
       group.visible=false;this.pivotGroup.add(group);
-      this.garden3D={group,pot,plant,can,tip,stream,point:new THREE.Vector3(),target:new THREE.Vector3(),direction:new THREE.Vector3(),up:new THREE.Vector3(0,1,0)};
+      this.garden3D={group,pot,plant,can,tip,stream,point:new THREE.Vector3(),target:new THREE.Vector3(),direction:new THREE.Vector3(),up:new THREE.Vector3(0,1,0),grip:new THREE.Vector3(),handQ:new THREE.Quaternion(),pivotQ:new THREE.Quaternion(),velocity:new THREE.Vector3()};
+      if(this.authoredMotion?.waterPotPosition)pot.position.copy(this.authoredMotion.waterPotPosition);
     }
 
     _updateGarden3D(now) {
@@ -1054,17 +1059,39 @@
       const age=Math.max(0,(now-this.behavior.start)/1000),t=this.behavior.id==='showPlant'?13+age:age,end=Math.max(0,(this.behavior.until-now)/1000);
       g.pot.scale.setScalar(this.modelHeight*.075*smooth01(Math.min(age/.7,end/.7)));
       const authored=Boolean(this.authoredMotion);
-      const growth=smooth01((t-(authored?7.2:6))/(authored?4.6:5));g.plant.visible=growth>0;g.plant.scale.setScalar(Math.max(.001,growth));
-      const pour=authored?smooth01((t-3.4)/.5)*smooth01((6.9-t)/.5):smooth01((t-1)/.5)*smooth01((6-t)/.5);
-      const carry=authored?smooth01((t-1)/.5)*smooth01((7.2-t)/.5):smooth01(t/.8)*smooth01((7-t)/.8);
-      g.can.visible=carry>.001;g.can.scale.setScalar(this.modelHeight*.065*carry);
+      const state=root.WAIFU_SHARED.gardenState(t),growth=state.growth;g.plant.visible=growth>0;g.plant.scale.setScalar(Math.max(.001,growth));
+      const pour=state.pour,carry=state.carry;
+      g.can.visible=carry>.001;g.can.scale.setScalar(this.modelHeight*.06);
+      // Fade the complete item without shrinking its handle away from the grip.
+      g.can.traverse(n=>{if(n.material){n.material.transparent=carry<.999;n.material.opacity=carry;}});
       this.pivotGroup.updateWorldMatrix(true,true);
-      const hand=this.boneMap.get('rightHand')?.node;
-      if(hand){hand.getWorldPosition(g.point);this.pivotGroup.worldToLocal(g.point);g.can.position.copy(g.point);g.can.rotation.z=.32*pour;}
+      const raw=key=>this.vrm?.humanoid?.getRawBoneNode(key)||this.boneMap.get(key)?.node;
+      const hand=raw('rightHand');
+      if(hand){
+        g.grip.set(0,0,0);let count=0;
+        for(const key of ['rightMiddleIntermediate','rightMiddleDistal']){const finger=raw(key);if(finger){finger.getWorldPosition(g.point);g.grip.add(g.point);count++;}}
+        if(count)g.grip.multiplyScalar(1/count);else hand.getWorldPosition(g.grip);
+        this.pivotGroup.worldToLocal(g.grip);g.can.position.copy(g.grip);
+        if(authored){
+          this.pivotGroup.getWorldQuaternion(g.pivotQ).invert();this.boneMap.get('rightHand').node.getWorldQuaternion(g.handQ);
+          g.can.quaternion.copy(g.pivotQ).multiply(g.handQ).multiply(this.authoredMotion.waterGripCorrection);
+        }else g.can.rotation.z=.65*pour;
+      }
       this.pivotGroup.updateWorldMatrix(true,true);g.tip.getWorldPosition(g.point);this.pivotGroup.worldToLocal(g.point);
       g.target.copy(g.pot.position);g.target.y+=this.modelHeight*.078;
-      g.direction.copy(g.target).sub(g.point);g.stream.visible=pour>.1;
-      g.stream.position.copy(g.point).add(g.target).multiplyScalar(.5);g.stream.scale.y=g.direction.length();g.stream.quaternion.setFromUnitVectors(g.up,g.direction.normalize());
+      // The water leaves the actual nozzle and falls under gravity. Never draw
+      // a straight beam which aims itself at a distant pot.
+      g.velocity.set(-.87,.5,0).normalize().applyQuaternion(g.can.quaternion).multiplyScalar(this.modelHeight*.24);
+      const gravity=this.modelHeight*3,drop=g.point.y-g.target.y;
+      const fall=(g.velocity.y+Math.sqrt(g.velocity.y*g.velocity.y+2*gravity*Math.max(0,drop)))/gravity;
+      const landingX=g.point.x+g.velocity.x*fall,landingZ=g.point.z+g.velocity.z*fall;
+      const hitsSoil=Math.hypot(landingX-g.target.x,landingZ-g.target.z)<this.modelHeight*.055;
+      g.stream.visible=g.can.visible&&pour>.05&&drop>0&&g.velocity.y<0&&hitsSoil;
+      for(let strand=0;strand<g.stream.children.length;strand++){
+        const line=g.stream.children[strand],positions=line.geometry.getAttribute('position');line.material.opacity=pour*(.55+.2*Math.sin(t*13+strand));
+        for(let i=0;i<17;i++){const flight=fall*i/16,spread=(strand-1)*this.modelHeight*.002*i/16;positions.setXYZ(i,g.point.x+g.velocity.x*flight+spread,g.point.y+g.velocity.y*flight-.5*gravity*flight*flight,g.point.z+g.velocity.z*flight+spread);}
+        positions.needsUpdate=true;line.geometry.computeBoundingSphere();
+      }
     }
 
     _applyExpression(name, val) {
